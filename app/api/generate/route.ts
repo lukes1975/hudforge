@@ -1,84 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { ApiError, checkRateLimit, createGeneration, validateGenerateRequest } from '@/lib/generation'
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, style } = await req.json()
-
-    if (!prompt) {
-      return NextResponse.json({ error: 'Prompt required' }, { status: 400 })
-    }
-
-    // TODO: Check user auth (Clerk)
-    // TODO: Check user credits
-    // TODO: Validate prompt (no inappropriate content)
-
-    // Generate UI via Replicate
-    const generation = await generateUI(prompt, style)
-
-    // TODO: Deduct credits
-    // TODO: Store generation in database
-    // TODO: Upload PNG to storage
-
-    return NextResponse.json({
-      success: true,
-      generation: {
-        id: generation.id,
-        imageUrl: generation.imageUrl,
-        luauCode: generation.luauCode,
-        prompt,
-        style,
-        createdAt: new Date().toISOString()
-      }
+    const rateLimit = checkRateLimit(getRateLimitKey(req))
+    const body = await req.json().catch(() => {
+      throw new ApiError('Invalid JSON body', 400, 'invalid_json')
     })
-  } catch (error) {
-    console.error('Generation failed:', error)
+    const { prompt, style } = validateGenerateRequest(body)
+
+    // TODO: Replace this local limiter with account-aware credits before launch.
+    // TODO: Deduct credits only after the provider accepts the prediction.
+    const generation = await createGeneration(prompt, style)
+
     return NextResponse.json(
-      { error: 'Generation failed' },
-      { status: 500 }
+      {
+        success: true,
+        generation,
+      },
+      {
+        status: 202,
+        headers: {
+          'X-RateLimit-Remaining': String(rateLimit.remaining),
+          'X-RateLimit-Reset': String(Math.ceil(rateLimit.resetAt / 1000)),
+        },
+      }
+    )
+  } catch (error) {
+    return handleApiError(error, 'Generation failed')
+  }
+}
+
+function getRateLimitKey(req: NextRequest): string {
+  return (
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    req.headers.get('x-real-ip') ||
+    'anonymous'
+  )
+}
+
+function handleApiError(error: unknown, fallbackMessage: string) {
+  if (error instanceof ApiError) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: error.code,
+          message: error.message,
+        },
+      },
+      {
+        status: error.status,
+        headers: error.retryAfter ? { 'Retry-After': String(error.retryAfter) } : undefined,
+      }
     )
   }
-}
 
-async function generateUI(prompt: string, style?: string) {
-  const replicateToken = process.env.REPLICATE_API_TOKEN
-
-  if (!replicateToken) {
-    // Mock response for development
-    return {
-      id: `gen_${Date.now()}`,
-      imageUrl: 'https://via.placeholder.com/512x512.png?text=UI+Preview',
-      luauCode: generateLuauCode(prompt)
-    }
-  }
-
-  // TODO: Integrate with Replicate Flux model
-  // For now, return mock
-  return {
-    id: `gen_${Date.now()}`,
-    imageUrl: 'https://via.placeholder.com/512x512.png?text=UI+Preview',
-    luauCode: generateLuauCode(prompt)
-  }
-}
-
-function generateLuauCode(prompt: string): string {
-  // Basic Luau scaffold - will be enhanced by LLM later
-  return `-- Generated from: "${prompt}"
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "GeneratedUI"
-ScreenGui.ResetOnSpawn = false
-
-local Frame = Instance.new("Frame")
-Frame.Name = "MainFrame"
-Frame.Size = UDim2.new(0, 200, 0, 100)
-Frame.Position = UDim2.new(0.5, -100, 0.5, -50)
-Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-Frame.BorderSizePixel = 0
-Frame.Parent = ScreenGui
-
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 8)
-UICorner.Parent = Frame
-
-return ScreenGui
-`
+  console.error(fallbackMessage, error)
+  return NextResponse.json(
+    {
+      success: false,
+      error: {
+        code: 'internal_error',
+        message: fallbackMessage,
+      },
+    },
+    { status: 500 }
+  )
 }

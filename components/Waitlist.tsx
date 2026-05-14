@@ -39,7 +39,7 @@ export function Waitlist() {
         
         {status === 'success' ? (
           <div className="p-6 bg-green-500/10 border border-green-500/50 rounded-lg">
-            <p className="text-green-400 text-lg font-semibold">✓ You're on the list! Check your email soon.</p>
+            <p className="text-green-400 text-lg font-semibold">✓ You&apos;re on the list! Check your email soon.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
