@@ -10,13 +10,21 @@ export function Waitlist() {
     e.preventDefault()
     setStatus('loading')
     
-    // TODO: Integrate with Supabase
-    // For now, simulate API call
-    setTimeout(() => {
-      console.log('Waitlist signup:', email)
+    try {
+      const response = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+      
+      if (!response.ok) throw new Error('Failed to join waitlist')
+      
       setStatus('success')
       setEmail('')
-    }, 1000)
+    } catch (error) {
+      console.error('Waitlist error:', error)
+      setStatus('error')
+    }
   }
 
   return (
