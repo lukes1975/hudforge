@@ -3,19 +3,19 @@ export function Showcase() {
     {
       title: 'Combat HUD',
       subtitle: 'Boss fight-ready health and ability layout',
-      accent: 'from-rose-500/80 via-red-500/70 to-orange-500/80',
+      accent: 'from-rose-500/80 via-orange-500/70 to-amber-400/80',
       layout: 'combat',
     },
     {
       title: 'Inventory Panel',
       subtitle: 'Item grid with rarity states and quick actions',
-      accent: 'from-cyan-500/80 via-blue-500/70 to-indigo-500/80',
+      accent: 'from-cyan-500/80 via-blue-500/70 to-violet-500/80',
       layout: 'inventory',
     },
     {
       title: 'Action Button',
       subtitle: 'Clear affordance, strong hover states, fast tap feedback',
-      accent: 'from-emerald-500/80 via-green-500/70 to-lime-500/80',
+      accent: 'from-emerald-500/80 via-teal-500/70 to-cyan-400/80',
       layout: 'button',
     },
     {
@@ -27,40 +27,42 @@ export function Showcase() {
     {
       title: 'Dialogue Box',
       subtitle: 'NPC conversation with choices and story tone',
-      accent: 'from-fuchsia-500/80 via-pink-500/70 to-purple-500/80',
+      accent: 'from-fuchsia-500/80 via-violet-500/70 to-indigo-500/80',
       layout: 'dialog',
     },
   ]
 
   return (
-    <section id="showcase" className="py-24 px-6 lg:px-8 bg-gradient-to-b from-black to-slate-950">
+    <section id="showcase" className="relative overflow-hidden px-6 py-24 lg:px-8">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_0%,rgba(34,211,238,0.08),transparent_25%),radial-gradient(circle_at_70%_70%,rgba(168,85,247,0.08),transparent_22%)]" />
       <div className="mx-auto max-w-6xl">
-        <div className="text-center mb-16">
-          <p className="text-sm uppercase tracking-[0.3em] text-emerald-300/80 mb-4">Example iteration</p>
-          <h2 className="text-3xl font-bold tracking-tight text-white sm:text-5xl mb-4">
+        <div className="mb-16 text-center">
+          <p className="mb-4 text-sm uppercase tracking-[0.34em] text-emerald-200/75">Example iteration</p>
+          <h2 className="mb-4 text-3xl font-black tracking-tight text-white sm:text-5xl">
             Built to look like a real game interface.
           </h2>
-          <p className="text-lg text-slate-300 max-w-3xl mx-auto">
+          <p className="mx-auto max-w-3xl text-lg leading-8 text-slate-300">
             HUDForge should make Roblox developers feel like they already have a premium UI team behind them.
           </p>
         </div>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {examples.map((example) => (
+          {examples.map((example, index) => (
             <article
               key={example.title}
-              className="group overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/85 shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/40"
+              className="group overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-950/88 shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:border-cyan-300/35"
+              style={{ animationDelay: `${index * 90}ms` }}
             >
               <div className={`h-56 bg-gradient-to-br ${example.accent} p-5`}>
                 {example.layout === 'combat' && (
-                  <div className="flex h-full flex-col justify-between rounded-2xl border border-white/20 bg-slate-950/55 p-4 backdrop-blur-sm">
-                    <div className="flex items-center justify-between text-white/90 text-sm">
+                  <div className="flex h-full flex-col justify-between rounded-2xl border border-white/20 bg-slate-950/58 p-4 backdrop-blur-sm">
+                    <div className="flex items-center justify-between text-sm text-white/90">
                       <span>HUDForge / Combat</span>
                       <span className="rounded-full bg-white/10 px-3 py-1">LIVE</span>
                     </div>
                     <div className="space-y-3">
                       <div className="h-4 w-full rounded-full bg-white/10">
-                        <div className="h-4 w-[84%] rounded-full bg-gradient-to-r from-red-400 to-orange-400" />
+                        <div className="h-4 w-[84%] rounded-full bg-gradient-to-r from-rose-400 via-orange-400 to-amber-300 shadow-[0_0_20px_rgba(251,146,60,0.35)]" />
                       </div>
                       <div className="grid grid-cols-3 gap-3">
                         {['Q', 'E', 'R'].map((slot) => (
@@ -74,8 +76,8 @@ export function Showcase() {
                 )}
 
                 {example.layout === 'inventory' && (
-                  <div className="flex h-full flex-col gap-4 rounded-2xl border border-white/20 bg-slate-950/55 p-4 backdrop-blur-sm">
-                    <div className="flex items-center justify-between text-white/90 text-sm">
+                  <div className="flex h-full flex-col gap-4 rounded-2xl border border-white/20 bg-slate-950/58 p-4 backdrop-blur-sm">
+                    <div className="flex items-center justify-between text-sm text-white/90">
                       <span>Inventory</span>
                       <span className="rounded-full bg-cyan-400/20 px-3 py-1 text-cyan-100">12 ITEMS</span>
                     </div>
@@ -90,7 +92,7 @@ export function Showcase() {
                 )}
 
                 {example.layout === 'button' && (
-                  <div className="flex h-full items-center justify-center rounded-2xl border border-white/20 bg-slate-950/55 p-4 backdrop-blur-sm">
+                  <div className="flex h-full items-center justify-center rounded-2xl border border-white/20 bg-slate-950/58 p-4 backdrop-blur-sm">
                     <button className="rounded-2xl bg-white/15 px-8 py-4 text-lg font-semibold text-white shadow-lg transition-transform duration-300 group-hover:scale-105">
                       Play Now
                     </button>
@@ -98,20 +100,20 @@ export function Showcase() {
                 )}
 
                 {example.layout === 'skill' && (
-                  <div className="flex h-full flex-col justify-between rounded-2xl border border-white/20 bg-slate-950/55 p-4 backdrop-blur-sm">
-                    <div className="flex items-center justify-between text-white/90 text-sm">
+                  <div className="flex h-full flex-col justify-between rounded-2xl border border-white/20 bg-slate-950/58 p-4 backdrop-blur-sm">
+                    <div className="flex items-center justify-between text-sm text-white/90">
                       <span>Skill Cooldown</span>
                       <span>18s</span>
                     </div>
-                    <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full border-8 border-white/10 border-t-white/70 text-2xl font-bold text-white">
+                    <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full border-8 border-white/10 border-t-white/80 text-2xl font-bold text-white shadow-[0_0_30px_rgba(255,255,255,0.08)]">
                       64%
                     </div>
                   </div>
                 )}
 
                 {example.layout === 'dialog' && (
-                  <div className="flex h-full flex-col justify-between rounded-2xl border border-white/20 bg-slate-950/55 p-4 backdrop-blur-sm">
-                    <div className="rounded-2xl bg-black/30 p-3 text-sm text-white/90">
+                  <div className="flex h-full flex-col justify-between rounded-2xl border border-white/20 bg-slate-950/58 p-4 backdrop-blur-sm">
+                    <div className="rounded-2xl bg-black/30 p-3 text-sm leading-6 text-white/90">
                       “You made it this far. Choose carefully.”
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -122,7 +124,7 @@ export function Showcase() {
                 )}
               </div>
               <div className="p-6">
-                <h3 className="text-xl font-semibold text-white mb-1">{example.title}</h3>
+                <h3 className="mb-1 text-xl font-semibold text-white">{example.title}</h3>
                 <p className="text-sm text-slate-300">{example.subtitle}</p>
               </div>
             </article>

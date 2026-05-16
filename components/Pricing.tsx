@@ -22,15 +22,16 @@ export function Pricing() {
   ]
 
   return (
-    <section className="py-24 px-6 lg:px-8 bg-slate-950/70">
+    <section className="relative overflow-hidden px-6 py-24 lg:px-8">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(250,204,21,0.07),transparent_24%),radial-gradient(circle_at_80%_0%,rgba(34,211,238,0.08),transparent_20%)]" />
       <div className="mx-auto max-w-6xl">
-        <div className="text-center mb-16">
-          <p className="text-sm uppercase tracking-[0.3em] text-pink-300/80 mb-4">Founder pricing</p>
-          <h2 className="text-3xl font-bold tracking-tight text-white sm:text-5xl mb-4">
+        <div className="mb-16 text-center">
+          <p className="mb-4 text-sm uppercase tracking-[0.34em] text-amber-200/80">Founder pricing</p>
+          <h2 className="mb-4 text-3xl font-black tracking-tight text-white sm:text-5xl">
             Early access pricing designed to reward the first builders in.
           </h2>
-          <p className="text-lg text-slate-300 max-w-3xl mx-auto">
-            These tiers are being used to shape the launch. Waitlist members lock in the best starting rate before public release.
+          <p className="mx-auto max-w-3xl text-lg leading-8 text-slate-300">
+            These tiers help shape the launch. Waitlist members lock in the best starting rate before public release.
           </p>
         </div>
 
@@ -38,25 +39,23 @@ export function Pricing() {
           {tiers.map((tier) => (
             <article
               key={tier.name}
-              className={`relative rounded-3xl p-8 transition-transform duration-300 hover:-translate-y-1 ${
-                tier.popular
-                  ? 'glass-panel border-cyan-400/40 shadow-cyan-500/10'
-                  : 'glass-panel'
+              className={`relative rounded-3xl p-8 transition-all duration-300 hover:-translate-y-1 ${
+                tier.popular ? 'hud-frame border-cyan-300/30 shadow-[0_24px_80px_rgba(34,211,238,0.1)]' : 'hud-frame'
               }`}
             >
               {tier.popular && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 px-4 py-1 text-sm font-semibold text-white">
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-cyan-400 via-violet-500 to-amber-400 px-4 py-1 text-sm font-semibold text-slate-950">
                   Most Popular
                 </div>
               )}
 
-              <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold text-white mb-2">{tier.name}</h3>
+              <div className="mb-6 text-center">
+                <h3 className="mb-2 text-2xl font-bold text-white">{tier.name}</h3>
                 <div className="mb-2">
-                  <span className="text-4xl font-bold text-white">{tier.price}</span>
+                  <span className="text-4xl font-black text-white">{tier.price}</span>
                   <span className="text-slate-400">/month</span>
                 </div>
-                <p className="text-slate-300 text-sm">{tier.description}</p>
+                <p className="text-sm text-slate-300">{tier.description}</p>
               </div>
 
               <ul className="space-y-3">

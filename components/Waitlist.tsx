@@ -20,7 +20,9 @@ export function Waitlist() {
         }),
       })
 
-      if (!response.ok) throw new Error('Failed to join waitlist')
+      if (!response.ok) {
+        throw new Error('Failed to join waitlist')
+      }
 
       setStatus('success')
       setEmail('')
@@ -31,33 +33,30 @@ export function Waitlist() {
   }
 
   return (
-    <section id="waitlist" className="py-24 px-6 lg:px-8 bg-gradient-to-b from-slate-950 to-black">
+    <section id="waitlist" className="relative overflow-hidden px-6 py-24 lg:px-8">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_15%,rgba(34,211,238,0.09),transparent_22%),radial-gradient(circle_at_80%_70%,rgba(245,158,11,0.08),transparent_18%)]" />
       <div className="mx-auto max-w-5xl">
-        <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1.1fr_0.9fr] items-center">
+        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-blue-300/80 mb-4">Private beta</p>
-            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-5xl">
+            <p className="mb-4 text-sm uppercase tracking-[0.34em] text-cyan-200/70">Private beta</p>
+            <h2 className="text-3xl font-black tracking-tight text-white sm:text-5xl">
               Join the waitlist for founding access and Roblox-first UI workflows.
             </h2>
-            <p className="mt-6 text-lg text-slate-300 leading-8 max-w-2xl">
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
               HUDForge is being built for developers who want to move faster without sacrificing the look and feel of the game.
               Early builders will get founder pricing, launch updates, and a direct line into the product roadmap.
             </p>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
-              {[
-                'Founder pricing lock-in',
-                'Early access to new features',
-                'Built for Roblox builders only',
-              ].map((item) => (
-                <div key={item} className="glass-panel rounded-2xl px-4 py-3 text-sm text-slate-200">
+              {['Founder pricing lock-in', 'Early access to new features', 'Built for Roblox builders only'].map((item) => (
+                <div key={item} className="hud-frame rounded-2xl px-4 py-3 text-sm text-slate-200">
                   {item}
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="glass-panel rounded-3xl p-8">
+          <div className="hud-frame rounded-3xl p-8">
             <div className="mb-6">
               <h3 className="text-2xl font-semibold text-white">Get on the list</h3>
               <p className="mt-2 text-slate-300">
@@ -66,8 +65,8 @@ export function Waitlist() {
             </div>
 
             {status === 'success' ? (
-              <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 p-6">
-                <p className="text-emerald-300 text-lg font-semibold">You’re in. Founding access request received.</p>
+              <div className="rounded-2xl border border-emerald-400/40 bg-emerald-400/10 p-6">
+                <p className="text-lg font-semibold text-emerald-200">You’re in. Founding access request received.</p>
                 <p className="mt-2 text-sm text-emerald-100/80">We’ll email you as soon as the next invite batch is ready.</p>
               </div>
             ) : (
@@ -80,14 +79,14 @@ export function Waitlist() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@studio.dev"
                     required
-                    className="w-full rounded-2xl border border-slate-700 bg-slate-900/80 px-5 py-4 text-white placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/30"
+                    className="w-full rounded-2xl border border-slate-700 bg-slate-950/70 px-5 py-4 text-white placeholder:text-slate-500 transition-all duration-300 focus:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/25"
                   />
                 </label>
 
                 <button
                   type="submit"
                   disabled={status === 'loading'}
-                  className="w-full rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 px-6 py-4 text-base font-semibold text-white shadow-lg transition-all duration-300 hover:scale-[1.01] hover:shadow-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-2xl bg-gradient-to-r from-cyan-400 via-violet-500 to-amber-400 px-6 py-4 text-base font-semibold text-slate-950 shadow-[0_18px_60px_rgba(34,211,238,0.18)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_70px_rgba(168,85,247,0.18)] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {status === 'loading' ? 'Joining…' : 'Join waitlist'}
                 </button>
@@ -95,9 +94,7 @@ export function Waitlist() {
             )}
 
             {status === 'error' && (
-              <p className="mt-4 text-sm text-red-300">
-                Something went wrong. Please try again in a moment.
-              </p>
+              <p className="mt-4 text-sm text-red-300">Something went wrong. Please try again in a moment.</p>
             )}
 
             <div className="mt-6 flex flex-wrap gap-3 text-xs text-slate-400">

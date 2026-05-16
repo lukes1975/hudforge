@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'HUDForge — Ship Roblox UI in Minutes',
+  title: 'HUDForge — Cinematic Roblox UI, Faster',
   description:
-    'AI-powered Roblox UI workflow platform for transparent PNGs, clean Luau hierarchies, live previews, and one-click Studio import.',
+    'HUDForge helps Roblox builders generate polished HUDs, menus, and UI systems with transparent PNGs, structured Luau hierarchies, and a premium game-menu aesthetic.',
 }
 
 export default function RootLayout({
@@ -25,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full bg-black text-white">{children}</body>
+      <body className="min-h-full bg-[color:var(--background)] text-white">{children}</body>
     </html>
   )
 }
