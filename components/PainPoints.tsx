@@ -1,49 +1,50 @@
 export function PainPoints() {
   const painPoints = [
     {
-      emoji: '🕹️',
+      id: '01',
       title: 'Game UI still takes too long',
       description:
         'You can move gameplay fast, but the HUD, menus, and inventory polish still eat sprint time with endless back-and-forth.',
     },
     {
-      emoji: '🧱',
+      id: '02',
       title: 'Generic asset packs flatten the vibe',
       description:
         'Most premade UI looks detached from the world. Your interface should feel like part of the game, not a layer pasted on top.',
     },
     {
-      emoji: '💸',
+      id: '03',
       title: 'Hiring UI help adds friction',
-      description:
-        'Small teams cannot keep paying designers every time they need a new state, panel, or menu variation.',
+      description: 'Small teams cannot keep paying designers every time they need a new state, panel, or menu variation.',
     },
   ]
 
   return (
-    <section className="relative overflow-hidden px-6 py-24 lg:px-8">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_20%,rgba(34,211,238,0.08),transparent_26%),radial-gradient(circle_at_80%_80%,rgba(168,85,247,0.08),transparent_24%)]" />
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-16 text-center">
-          <p className="mb-4 text-sm uppercase tracking-[0.34em] text-cyan-200/70">Why HUDForge exists</p>
-          <h2 className="mx-auto max-w-3xl text-3xl font-black tracking-tight text-white sm:text-5xl">
-            Roblox builders are still forced to choose between speed and polish.
+    <section id="why" className="relative overflow-hidden px-6 py-24 lg:px-8">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_18%_18%,rgba(111,120,255,0.08),transparent_24%),radial-gradient(circle_at_84%_72%,rgba(118,185,0,0.06),transparent_18%)]" />
+      <div className="section-shell grid gap-12 lg:grid-cols-[0.78fr_1.22fr]">
+        <div className="max-w-xl">
+          <span className="section-kicker">Why HUDForge exists</span>
+          <h2 className="mt-5 max-w-lg text-3xl font-medium tracking-[-0.045em] text-white sm:text-5xl">
+            Roblox builders still have to choose between shipping fast and looking expensive.
           </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-slate-300">
-            HUDForge compresses the slowest part of the UI loop so you can ship faster, iterate visually, and keep the game feeling premium.
+          <p className="mt-5 max-w-xl text-lg leading-8 text-slate-300">
+            HUDForge compresses the slowest part of the UI loop so you can iterate visually, preserve game feel, and stop
+            losing sprint time to polish debt.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          {painPoints.map((point, index) => (
-            <article
-              key={point.title}
-              className="hud-frame rounded-3xl p-8 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-300/35"
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
-              <div className="mb-5 text-4xl">{point.emoji}</div>
-              <h3 className="mb-3 text-xl font-semibold text-white">{point.title}</h3>
-              <p className="leading-7 text-slate-300">{point.description}</p>
+        <div className="grid gap-5 md:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+          {painPoints.map((point) => (
+            <article key={point.title} className="hud-frame rounded-[1.75rem] p-6 lg:p-7">
+              <div className="flex items-center justify-between gap-4">
+                <span className="data-label">{point.id}</span>
+                <span className="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-slate-500">
+                  Pain point
+                </span>
+              </div>
+              <h3 className="mt-8 text-[1.28rem] font-semibold tracking-[-0.03em] text-white">{point.title}</h3>
+              <p className="mt-4 leading-7 text-slate-300">{point.description}</p>
             </article>
           ))}
         </div>

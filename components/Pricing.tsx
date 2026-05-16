@@ -4,64 +4,66 @@ export function Pricing() {
       name: 'Starter',
       price: '$9',
       description: 'For solo creators and small experiments',
-      features: ['50 generations/month', 'PNG + Luau export', 'Basic styles'],
+      features: ['50 generations / month', 'PNG + Luau export', 'Founding-rate access'],
     },
     {
       name: 'Pro',
       price: '$19',
       description: 'For serious Roblox builders shipping live UI',
-      features: ['500 generations/month', 'Priority generation', 'Advanced styles', 'Version history'],
+      features: ['500 generations / month', 'Priority generation', 'Advanced styles', 'Version history'],
       popular: true,
     },
     {
       name: 'Studio',
       price: '$49',
-      description: 'For teams that need more output and consistency',
+      description: 'For teams that need more output and stronger consistency',
       features: ['Unlimited generations', 'Team collaboration', 'Custom styles', 'Priority support', 'API access'],
     },
   ]
 
   return (
-    <section className="relative overflow-hidden px-6 py-24 lg:px-8">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(250,204,21,0.07),transparent_24%),radial-gradient(circle_at_80%_0%,rgba(34,211,238,0.08),transparent_20%)]" />
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-16 text-center">
-          <p className="mb-4 text-sm uppercase tracking-[0.34em] text-amber-200/80">Founder pricing</p>
-          <h2 className="mb-4 text-3xl font-black tracking-tight text-white sm:text-5xl">
-            Early access pricing designed to reward the first builders in.
+    <section id="pricing" className="relative overflow-hidden px-6 py-24 lg:px-8">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(118,185,0,0.06),transparent_22%),radial-gradient(circle_at_82%_0%,rgba(111,120,255,0.08),transparent_18%)]" />
+      <div className="section-shell">
+        <div className="max-w-3xl">
+          <span className="section-kicker">Founder pricing</span>
+          <h2 className="mt-5 text-3xl font-medium tracking-[-0.045em] text-white sm:text-5xl">
+            Early access pricing that rewards the first builders in.
           </h2>
-          <p className="mx-auto max-w-3xl text-lg leading-8 text-slate-300">
-            These tiers help shape the launch. Waitlist members lock in the best starting rate before public release.
+          <p className="mt-5 text-lg leading-8 text-slate-300">
+            These tiers help shape the launch. Waitlist members lock in the strongest starting rate before public release.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+        <div className="mt-12 grid gap-6 md:grid-cols-3">
           {tiers.map((tier) => (
             <article
               key={tier.name}
-              className={`relative rounded-3xl p-8 transition-all duration-300 hover:-translate-y-1 ${
-                tier.popular ? 'hud-frame border-cyan-300/30 shadow-[0_24px_80px_rgba(34,211,238,0.1)]' : 'hud-frame'
+              className={`relative rounded-[1.85rem] border p-7 ${
+                tier.popular
+                  ? 'border-lime-400/28 bg-[linear-gradient(180deg,rgba(118,185,0,0.08),rgba(255,255,255,0.02))] shadow-[0_24px_80px_rgba(118,185,0,0.1)]'
+                  : 'border-white/8 bg-[rgba(255,255,255,0.02)]'
               }`}
             >
               {tier.popular && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-cyan-400 via-violet-500 to-amber-400 px-4 py-1 text-sm font-semibold text-slate-950">
-                  Most Popular
+                <div className="absolute -top-3 left-6 rounded-full border border-lime-400/24 bg-lime-400/12 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-lime-100">
+                  Most popular
                 </div>
               )}
 
-              <div className="mb-6 text-center">
-                <h3 className="mb-2 text-2xl font-bold text-white">{tier.name}</h3>
-                <div className="mb-2">
-                  <span className="text-4xl font-black text-white">{tier.price}</span>
-                  <span className="text-slate-400">/month</span>
+              <div className="border-b border-white/8 pb-6">
+                <div className="data-label">{tier.name}</div>
+                <div className="mt-4 flex items-end gap-2">
+                  <span className="text-5xl font-medium tracking-[-0.05em] text-white">{tier.price}</span>
+                  <span className="pb-1 text-slate-500">/month</span>
                 </div>
-                <p className="text-sm text-slate-300">{tier.description}</p>
+                <p className="mt-4 text-sm leading-7 text-slate-300">{tier.description}</p>
               </div>
 
-              <ul className="space-y-3">
+              <ul className="mt-6 space-y-4">
                 {tier.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-3 text-sm text-slate-300">
-                    <span className="mt-0.5 text-cyan-300">✓</span>
+                  <li key={feature} className="flex items-start gap-3 text-sm text-slate-200">
+                    <span className="mt-1 h-2.5 w-2.5 rounded-full bg-lime-400" />
                     <span>{feature}</span>
                   </li>
                 ))}
@@ -70,9 +72,7 @@ export function Pricing() {
           ))}
         </div>
 
-        <div className="mt-12 text-center text-sm text-slate-400">
-          Final launch pricing will be locked once the waitlist feedback loop is complete.
-        </div>
+        <div className="mt-10 text-sm text-slate-400">Final launch pricing will lock once the waitlist feedback loop is complete.</div>
       </div>
     </section>
   )
