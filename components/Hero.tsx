@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { HeroVisualCluster } from '@/components/HeroVisualCluster'
 
 const heroTags = ['Private beta', 'Roblox-native workflow', 'Generated HUD systems', 'Studio-ready export']
@@ -12,6 +13,16 @@ export function Hero() {
   return (
     <section id="top" className="hero-scene">
       <div aria-hidden="true" className="hero-scene__atmosphere">
+        <div className="hero-scene__world-image">
+          <Image
+            src="/generated/hero/hero-cinematic-world.jpg"
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="hero-scene__world-image-asset"
+          />
+        </div>
         <div className="hero-scene__toplight" />
         <div className="hero-scene__fog hero-scene__fog--cyan" />
         <div className="hero-scene__fog hero-scene__fog--violet" />

@@ -20,10 +20,12 @@ type FalQueueResponse = {
   error?: string
 }
 
+type FalImageResult = { url?: string; content_type?: string }
+
 type FalResultResponse = {
-  images?: Array<{ url?: string; content_type?: string }>
-  image?: { url?: string; content_type?: string }
-  data?: { images?: Array<{ url?: string; content_type?: string }> }
+  images?: FalImageResult[]
+  image?: FalImageResult
+  data?: { images?: FalImageResult[] }
 }
 
 function getFalKey() {
@@ -55,7 +57,6 @@ export async function generateHeroAsset({ prompt, assetName, model = DEFAULT_FAL
       prompt,
       image_size: 'landscape_16_9',
       num_images: 1,
-      sync_mode: true,
     }),
   })
 
@@ -63,15 +64,26 @@ export async function generateHeroAsset({ prompt, assetName, model = DEFAULT_FAL
     throw new Error(`fal.ai request failed with status ${submitResponse.status}`)
   }
 
-  const payload = (await submitResponse.json()) as FalQueueResponse & FalResultResponse
-  const imageUrl =
-    payload.images?.[0]?.url ?? payload.data?.images?.[0]?.url ?? payload.image?.url ?? payload.response_url ?? undefined
+  const queuePayload = (await submitResponse.json()) as FalQueueResponse
+  const responseUrl = queuePayload.response_url
 
-  if (!imageUrl) {
+  if (!responseUrl) {
+    throw new Error('fal.ai did not return a response URL')
+  }
+
+  const result = await waitForFalResult(responseUrl, falKey)
+  const image = getFirstImage(result)
+
+  if (!image?.url) {
     throw new Error('fal.ai returned no image URL for generated asset')
   }
 
-  const imageResponse = await fetch(imageUrl)
+  const imageResponse = await fetch(image.url, {
+    headers: {
+      Authorization: `Key ${falKey}`,
+    },
+  })
+
   if (!imageResponse.ok) {
     throw new Error(`Failed to download generated asset from fal.ai (${imageResponse.status})`)
   }
@@ -79,7 +91,8 @@ export async function generateHeroAsset({ prompt, assetName, model = DEFAULT_FAL
   const arrayBuffer = await imageResponse.arrayBuffer()
   const buffer = Buffer.from(arrayBuffer)
   const outputDir = DEFAULT_OUTPUT_DIR
-  const fileName = `${safeAssetName}.png`
+  const extension = extensionFromContentType(imageResponse.headers.get('content-type') ?? image.content_type)
+  const fileName = `${safeAssetName}.${extension}`
   const absolutePath = path.join(outputDir, fileName)
 
   await mkdir(outputDir, { recursive: true })
@@ -91,8 +104,59 @@ export async function generateHeroAsset({ prompt, assetName, model = DEFAULT_FAL
     publicPath: `/generated/hero/${fileName}`,
     absolutePath,
     model: safeModel,
-    sourceUrl: imageUrl,
+    sourceUrl: image.url,
   }
+}
+
+async function waitForFalResult(responseUrl: string, falKey: string) {
+  for (let attempt = 0; attempt < 90; attempt += 1) {
+    if (attempt > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+    }
+
+    const response = await fetch(responseUrl, {
+      headers: {
+        Authorization: `Key ${falKey}`,
+      },
+    })
+
+    if (response.ok) {
+      return (await response.json()) as FalResultResponse
+    }
+
+    const body = await response.text()
+    if (response.status === 400 && body.toLowerCase().includes('still in progress')) {
+      continue
+    }
+
+    throw new Error(`fal.ai polling failed with status ${response.status}`)
+  }
+
+  throw new Error('Timed out waiting for fal.ai asset generation')
+}
+
+function getFirstImage(payload: FalResultResponse) {
+  return payload.images?.[0] ?? payload.data?.images?.[0] ?? payload.image
+}
+
+function extensionFromContentType(contentType?: string) {
+  if (!contentType) {
+    return 'jpg'
+  }
+
+  if (contentType.includes('png')) {
+    return 'png'
+  }
+
+  if (contentType.includes('webp')) {
+    return 'webp'
+  }
+
+  if (contentType.includes('jpeg') || contentType.includes('jpg')) {
+    return 'jpg'
+  }
+
+  return 'jpg'
 }
 
 function getAllowedModel(model: string) {

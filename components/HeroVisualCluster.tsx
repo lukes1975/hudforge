@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { HeroOverlayCard } from '@/components/HeroOverlayCard'
 
 const inventoryItems = ['Blade', 'Potion', 'Rune', 'Gem']
@@ -19,9 +20,17 @@ export function HeroVisualCluster() {
         <div className="hero-core__halo hero-core__halo--cyan" />
         <div className="hero-core__halo hero-core__halo--violet" />
         <div className="hero-core__portal">
+          <Image
+            src="/generated/hero/hero-ui-preview.jpg"
+            alt=""
+            fill
+            priority
+            sizes="(max-width: 767px) 90vw, (max-width: 1279px) 70vw, 520px"
+            className="hero-core__image"
+          />
+          <div className="hero-core__scrim" />
           <div className="hero-core__ring hero-core__ring--primary" />
           <div className="hero-core__ring hero-core__ring--secondary" />
-          <div className="hero-core__silhouette" />
           <div className="hero-core__grid" />
         </div>
         <div className="hero-core__caption">Cinematic Roblox UI forge</div>

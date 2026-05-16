@@ -665,6 +665,27 @@ body::before {
   pointer-events: none;
 }
 
+.hero-scene__world-image {
+  position: absolute;
+  inset: 0;
+  opacity: 0.34;
+}
+
+.hero-scene__world-image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(5, 8, 22, 0.92) 0%, rgba(5, 8, 22, 0.64) 38%, rgba(5, 8, 22, 0.36) 70%, rgba(5, 8, 22, 0.82) 100%),
+    linear-gradient(180deg, rgba(5, 8, 22, 0.18), rgba(5, 8, 22, 0.84));
+}
+
+.hero-scene__world-image-asset {
+  object-fit: cover;
+  object-position: center;
+  filter: saturate(0.95) contrast(1.05) brightness(0.68);
+}
+
 .hero-scene__toplight {
   position: absolute;
   left: 50%;
@@ -723,7 +744,7 @@ body::before {
 
 .hero-copy {
   position: relative;
-  z-index: 1;
+  z-index: 3;
   max-width: 42rem;
 }
 
@@ -795,6 +816,7 @@ body::before {
 
 .hero-visual {
   position: relative;
+  z-index: 2;
   min-height: 720px;
 }
 
@@ -870,7 +892,7 @@ body::before {
   justify-content: center;
   border-radius: 42% 42% 30% 30% / 34% 34% 40% 40%;
   background:
-    radial-gradient(circle at center, rgba(11, 16, 32, 0.38), rgba(5, 8, 22, 0.92) 58%),
+    radial-gradient(circle at center, rgba(11, 16, 32, 0.2), rgba(5, 8, 22, 0.74) 68%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 30%);
   border: 1px solid rgba(148, 163, 184, 0.12);
   overflow: hidden;
@@ -879,8 +901,24 @@ body::before {
     0 24px 90px rgba(2, 6, 23, 0.5);
 }
 
+.hero-core__image {
+  object-fit: cover;
+  object-position: center;
+  transform: scale(1.03);
+  filter: saturate(0.96) contrast(1.08) brightness(0.72);
+}
+
+.hero-core__scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at center, rgba(5, 8, 22, 0.02) 0%, rgba(5, 8, 22, 0.34) 62%, rgba(5, 8, 22, 0.82) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 20%);
+}
+
 .hero-core__ring {
   position: absolute;
+  z-index: 2;
   border-radius: 9999px;
   border: 1px solid rgba(148, 163, 184, 0.16);
 }
@@ -895,20 +933,9 @@ body::before {
   border-color: rgba(124, 92, 255, 0.18);
 }
 
-.hero-core__silhouette {
-  position: absolute;
-  bottom: 16%;
-  left: 50%;
-  width: 26%;
-  height: 42%;
-  transform: translateX(-50%);
-  border-radius: 48% 48% 22% 22% / 32% 32% 16% 16%;
-  background: linear-gradient(180deg, rgba(226, 232, 240, 0.3), rgba(10, 14, 28, 0.92));
-  box-shadow: 0 0 44px rgba(255, 255, 255, 0.08);
-}
-
 .hero-core__grid {
   position: absolute;
+  z-index: 2;
   inset: auto 8% 0;
   height: 34%;
   background-image:
