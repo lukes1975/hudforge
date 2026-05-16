@@ -212,6 +212,14 @@ export function generateLuauCode(prompt: string, style?: string): string {
     case 'menu':
     case 'hud':
       return createPanelLuau(prompt, analysis)
+    case 'skill':
+      return createSkillLuau(prompt, analysis)
+    case 'notification':
+      return createNotificationLuau(prompt, analysis)
+    case 'minimap':
+      return createMinimapLuau(prompt, analysis)
+    default:
+      return createPanelLuau(prompt, analysis)
   }
 }
 
@@ -665,6 +673,212 @@ Gradient.Color = ColorSequence.new({
   ColorSequenceKeypoint.new(1, Color3.fromRGB(22, 24, 30))
 })
 Gradient.Parent = Panel
+
+return ScreenGui
+`
+}
+
+function createSkillLuau(prompt: string, analysis: PromptAnalysis): string {
+  return `${createHeader(prompt, analysis)}local Skill = Instance.new("ImageButton")
+Skill.Name = "SkillIcon"
+Skill.AnchorPoint = Vector2.new(0, 0)
+Skill.Position = UDim2.new(0, 24, 0, 24)
+Skill.Size = UDim2.new(0, 92, 0, 92)
+Skill.ZIndex = 10
+Skill.BackgroundColor3 = Color3.fromRGB(29, 32, 42)
+Skill.BorderSizePixel = 0
+Skill.Parent = ScreenGui
+
+local Border = Instance.new("Frame")
+Border.Name = "SkillBorder"
+Border.BackgroundTransparency = 1
+Border.Position = UDim2.new(0, -4, 0, -4)
+Border.Size = UDim2.new(1, 8, 1, 8)
+Border.ZIndex = 9
+Border.Parent = Skill
+
+local BorderStroke = Instance.new("UIStroke")
+BorderStroke.Thickness = 3
+BorderStroke.Color = Color3.fromRGB(120, 200, 255)
+BorderStroke.Parent = Border
+
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 12)
+Corner.Parent = Skill
+
+local Cooldown = Instance.new("Frame")
+Cooldown.Name = "CooldownOverlay"
+Cooldown.AnchorPoint = Vector2.new(0.5, 0.5)
+Cooldown.Position = UDim2.new(0.5, 0, 0.5, 0)
+Cooldown.Size = UDim2.new(1, 0, 0.6, 0)
+Cooldown.ZIndex = 11
+Cooldown.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Cooldown.BorderSizePixel = 0
+Cooldown.BackgroundTransparency = 0.5
+Cooldown.Visible = false
+Cooldown.Parent = Skill
+
+local CooldownCorner = Instance.new("UICorner")
+CooldownCorner.CornerRadius = UDim.new(0, 8)
+CooldownCorner.Parent = Cooldown
+
+local Level = Instance.new("TextLabel")
+Level.Name = "SkillLevel"
+Level.AnchorPoint = Vector2.new(1, 1)
+Level.Position = UDim2.new(1, -4, 1, -4)
+Level.Size = UDim2.new(0, 24, 0, 24)
+Level.ZIndex = 12
+Level.BackgroundColor3 = Color3.fromRGB(75, 180, 255)
+Level.BorderSizePixel = 0
+Level.Font = Enum.Font.GothamBold
+Level.Text = "5"
+Level.TextColor3 = Color3.fromRGB(255, 255, 255)
+Level.TextScaled = true
+Level.Parent = Skill
+
+local LevelCorner = Instance.new("UICorner")
+LevelCorner.CornerRadius = UDim.new(0, 6)
+LevelCorner.Parent = Level
+
+return ScreenGui
+`
+}
+
+function createNotificationLuau(prompt: string, analysis: PromptAnalysis): string {
+  return `${createHeader(prompt, analysis)}local Notification = Instance.new("Frame")
+Notification.Name = "NotificationToast"
+Notification.AnchorPoint = Vector2.new(0.5, 0)
+Notification.Position = UDim2.new(0.5, 0, 0, 48)
+Notification.Size = UDim2.new(0, 320, 0, 68)
+Notification.ZIndex = 50
+Notification.BackgroundColor3 = Color3.fromRGB(22, 25, 30)
+Notification.BorderSizePixel = 0
+Notification.Parent = ScreenGui
+
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 8)
+Corner.Parent = Notification
+
+local Stroke = Instance.new("UIStroke")
+Stroke.Thickness = 2
+Stroke.Color = Color3.fromRGB(255, 200, 60)
+Stroke.Parent = Notification
+
+local Icon = Instance.new("Frame")
+Icon.Name = "NotificationIcon"
+Icon.Position = UDim2.new(0, 12, 0, 12)
+Icon.Size = UDim2.new(0, 44, 0, 44)
+Icon.ZIndex = 51
+Icon.BackgroundColor3 = Color3.fromRGB(255, 200, 60)
+Icon.BorderSizePixel = 0
+Icon.Parent = Notification
+
+local IconCorner = Instance.new("UICorner")
+IconCorner.CornerRadius = UDim.new(0, 6)
+IconCorner.Parent = Icon
+
+local Title = Instance.new("TextLabel")
+Title.Name = "NotificationTitle"
+Title.Position = UDim2.new(0, 68, 0, 12)
+Title.Size = UDim2.new(1, -80, 0, 24)
+Title.ZIndex = 51
+Title.BackgroundTransparency = 1
+Title.Font = Enum.Font.GothamBold
+Title.Text = "Achievement Unlocked!"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextScaled = true
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Notification
+
+local Message = Instance.new("TextLabel")
+Message.Name = "NotificationMessage"
+Message.Position = UDim2.new(0, 68, 0, 36)
+Message.Size = UDim2.new(1, -80, 0, 20)
+Message.ZIndex = 51
+Message.BackgroundTransparency = 1
+Message.Font = Enum.Font.Gotham
+Message.Text = "You've earned a new badge."
+Message.TextColor3 = Color3.fromRGB(220, 220, 220)
+Message.TextScaled = true
+Message.TextXAlignment = Enum.TextXAlignment.Left
+Message.Parent = Notification
+
+local Close = Instance.new("TextButton")
+Close.Name = "CloseButton"
+Close.AnchorPoint = Vector2.new(1, 0.5)
+Close.Position = UDim2.new(1, -8, 0.5, 0)
+Close.Size = UDim2.new(0, 24, 0, 24)
+Close.ZIndex = 52
+Close.BackgroundTransparency = 1
+Close.Font = Enum.Font.Gotham
+Close.Text = "×"
+Close.TextColor3 = Color3.fromRGB(200, 200, 200)
+Close.TextScaled = true
+Close.Parent = Notification
+
+return ScreenGui
+`
+}
+
+function createMinimapLuau(prompt: string, analysis: PromptAnalysis): string {
+  return `${createHeader(prompt, analysis)}local MiniMap = Instance.new("Frame")
+MiniMap.Name = "MiniMapWidget"
+MiniMap.AnchorPoint = Vector2.new(1, 1)
+MiniMap.Position = UDim2.new(1, -24, 1, -24)
+MiniMap.Size = UDim2.new(0, 180, 0, 180)
+MiniMap.ZIndex = 5
+MiniMap.BackgroundColor3 = Color3.fromRGB(15, 18, 24)
+MiniMap.BorderSizePixel = 0
+MiniMap.Parent = ScreenGui
+
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0, 8)
+Corner.Parent = MiniMap
+
+local Stroke = Instance.new("UIStroke")
+Stroke.Thickness = 2
+Stroke.Color = Color3.fromRGB(60, 120, 200)
+Stroke.Parent = MiniMap
+
+local MapArea = Instance.new("Frame")
+MapArea.Name = "MapDisplay"
+MapArea.Position = UDim2.new(0, 12, 0, 12)
+MapArea.Size = UDim2.new(1, -24, 1, -24)
+MapArea.ZIndex = 6
+MapArea.BackgroundColor3 = Color3.fromRGB(10, 12, 18)
+MapArea.BorderSizePixel = 0
+MapArea.Parent = MiniMap
+
+local MapCorner = Instance.new("UICorner")
+MapCorner.CornerRadius = UDim.new(0, 6)
+MapCorner.Parent = MapArea
+
+local PlayerMarker = Instance.new("Frame")
+PlayerMarker.Name = "PlayerMarker"
+PlayerMarker.AnchorPoint = Vector2.new(0.5, 0.5)
+PlayerMarker.Position = UDim2.new(0.5, 0, 0.5, 0)
+PlayerMarker.Size = UDim2.new(0, 8, 0, 8)
+PlayerMarker.ZIndex = 7
+PlayerMarker.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+PlayerMarker.BorderSizePixel = 0
+PlayerMarker.Parent = MapArea
+
+local MarkerCorner = Instance.new("UICorner")
+MarkerCorner.CornerRadius = UDim.new(0, 4)
+MarkerCorner.Parent = PlayerMarker
+
+local NorthIndicator = Instance.new("TextLabel")
+NorthIndicator.Name = "NorthIndicator"
+NorthIndicator.AnchorPoint = Vector2.new(0.5, 0)
+NorthIndicator.Position = UDim2.new(0.5, 0, 0, 4)
+NorthIndicator.Size = UDim2.new(0, 20, 0, 20)
+NorthIndicator.ZIndex = 8
+NorthIndicator.BackgroundTransparency = 1
+NorthIndicator.Font = Enum.Font.GothamBold
+NorthIndicator.Text = "N"
+NorthIndicator.TextColor3 = Color3.fromRGB(255, 255, 255)
+NorthIndicator.TextScaled = true
+NorthIndicator.Parent = MapArea
 
 return ScreenGui
 `
