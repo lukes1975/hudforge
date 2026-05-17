@@ -1,11 +1,14 @@
 import React from 'react';
+import { auth } from '@clerk/nextjs/server';
 import MRRMetricsDashboard from '@/components/dashboard/MRRMetricsDashboard';
 import FunnelMetricsDashboard from '@/components/dashboard/FunnelMetricsDashboard';
 import RetentionMetricsDashboard from '@/components/dashboard/RetentionMetricsDashboard';
 import AlertPanel from '@/components/dashboard/AlertPanel';
 import WeeklyTargets from '@/components/dashboard/WeeklyTargets';
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+    await auth.protect();
+
     return (
         <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-black text-white">
             <header className="border-b border-gray-800 py-6 px-6 lg:px-8">
