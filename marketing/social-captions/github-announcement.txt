@@ -1,0 +1,1 @@
+HUDForge public materials are live on the develop branch: multi-page marketing site, typed template content, and distribution scaffolding for launch. Next focus: signups, activation, and real creator feedback.

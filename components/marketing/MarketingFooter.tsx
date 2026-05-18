@@ -4,6 +4,8 @@ import { navItems } from '@/lib/marketing-content'
 
 const resourceLinks = [
   { label: 'Documentation', href: '/documentation' },
+  { label: 'Links', href: '/links' },
+  { label: 'Press Kit', href: '/press-kit/hudforge-press-kit.zip' },
   { label: 'Contact', href: '/contact' },
   { label: 'Sign In', href: '/sign-in' },
   { label: 'Dashboard', href: '/dashboard' },

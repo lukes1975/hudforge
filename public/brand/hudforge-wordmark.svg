@@ -1,0 +1,19 @@
+<svg width="1600" height="420" viewBox="0 0 1600 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="g1" x1="0" y1="0" x2="420" y2="420" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#00D1FF"/>
+    <stop offset="1" stop-color="#7C5CFF"/>
+  </linearGradient>
+  <linearGradient id="g2" x1="460" y1="120" x2="1450" y2="320" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#F8FBFF"/>
+    <stop offset="0.4" stop-color="#D7E4FF"/>
+    <stop offset="1" stop-color="#8AB8FF"/>
+  </linearGradient>
+</defs>
+<rect width="1600" height="420" rx="72" fill="#050816"/>
+<rect x="34" y="34" width="352" height="352" rx="102" fill="#0B1020" stroke="rgba(148,163,184,0.2)" stroke-width="4"/>
+<path d="M118 88H160V182H256V222H160V332H118V88Z" fill="url(#g1)"/>
+<path d="M224 88H330V128H266V182H322V222H266V332H224V88Z" fill="#8D7DFF"/>
+<text x="454" y="204" fill="url(#g2)" font-family="Verdana, Geneva, sans-serif" font-size="132" font-weight="700" letter-spacing="-6">HUDForge</text>
+<text x="462" y="280" fill="#7EA4D9" font-family="Verdana, Geneva, sans-serif" font-size="34" font-weight="600" letter-spacing="7">DESCRIBE A UI. PREVIEW IT. REFINE IT. EXPORT TO ROBLOX.</text>
+</svg>

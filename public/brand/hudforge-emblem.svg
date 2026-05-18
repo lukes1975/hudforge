@@ -1,0 +1,30 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="bg" x1="70" y1="64" x2="430" y2="448" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#08111F"/>
+    <stop offset="1" stop-color="#111C34"/>
+  </linearGradient>
+  <linearGradient id="c" x1="120" y1="256" x2="392" y2="256" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#00D1FF"/>
+    <stop offset="0.55" stop-color="#52E3FF"/>
+    <stop offset="1" stop-color="#7C5CFF"/>
+  </linearGradient>
+  <linearGradient id="v" x1="228" y1="154" x2="340" y2="352" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#A68BFF"/>
+    <stop offset="1" stop-color="#7C5CFF"/>
+  </linearGradient>
+  <filter id="glow" x="70" y="70" width="372" height="372" filterUnits="userSpaceOnUse">
+    <feGaussianBlur stdDeviation="16" result="b"/>
+    <feColorMatrix in="b" type="matrix" values="1 0 0 0 0  0 1 0 0 0.15  0 0 1 0 0.4  0 0 0 0.8 0"/>
+  </filter>
+</defs>
+<rect x="48" y="48" width="416" height="416" rx="120" fill="url(#bg)"/>
+<rect x="48" y="48" width="416" height="416" rx="120" stroke="rgba(148,163,184,0.22)" stroke-width="4"/>
+<path d="M136 112L184 112L184 224L284 224L284 270L184 270L184 400L136 400L136 112Z" fill="url(#c)"/>
+<path d="M246 112L376 112L376 158L294 158L294 224L364 224L364 270L294 270L294 400L246 400L246 112Z" fill="url(#v)"/>
+<path d="M130 104L382 104" stroke="rgba(255,255,255,0.08)" stroke-width="4" stroke-linecap="round"/>
+<path d="M128 408L384 408" stroke="rgba(255,255,255,0.06)" stroke-width="4" stroke-linecap="round"/>
+<g filter="url(#glow)">
+  <rect x="140" y="128" width="220" height="256" rx="60" stroke="#00D1FF" stroke-opacity="0.18" stroke-width="12"/>
+</g>
+</svg>

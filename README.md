@@ -54,6 +54,19 @@ The public marketing frontend is a multi-page App Router site backed by typed lo
 
 The waitlist UI posts to the existing `app/api/waitlist/route.ts` endpoint. Template, blog, pricing, docs, nav, contact, and image prompt content is currently local typed data so the frontend can ship without adding CMS or backend complexity.
 
+## Brand + Distribution Assets
+
+Launch/distribution scaffolding now lives in-repo:
+
+- `assets/brand-guidelines.md` — logo, palette, typography, voice, usage rules
+- `public/brand/` — favicons, app icons, emblem, wordmark, square avatar
+- `public/generated/brand/` — launch banners, social headers, template header art
+- `public/press-kit/` — downloadable press ZIP and one-page overview PDF
+- `emails/` — branded HTML email templates
+- `marketing/social-captions/` — bios, launch posts, content calendar, forum copy
+- `docs/distribution-setup.md` — manual platform activation instructions
+- `docs/distribution-strategy.md` — channel priorities and launch KPI plan
+
 ## Stack
 
 - **Framework:** Next.js 16 (App Router)
