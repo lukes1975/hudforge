@@ -1,5 +1,4 @@
 import React from 'react';
-import { auth } from '@clerk/nextjs/server';
 import MRRMetricsDashboard from '@/components/dashboard/MRRMetricsDashboard';
 import FunnelMetricsDashboard from '@/components/dashboard/FunnelMetricsDashboard';
 import RetentionMetricsDashboard from '@/components/dashboard/RetentionMetricsDashboard';
@@ -24,6 +23,7 @@ export default async function DashboardPage() {
         );
     }
 
+    const { auth } = await import('@clerk/nextjs/server');
     await auth.protect();
 
     return (

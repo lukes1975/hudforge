@@ -1,9 +1,8 @@
 import Link from 'next/link'
-import { SignIn } from '@clerk/nextjs'
 
 const hasClerkPublishableKey = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
 
-export default function SignInPage() {
+export default async function SignInPage() {
   if (!hasClerkPublishableKey) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[color:var(--background)] px-6 py-16 text-white">
@@ -24,6 +23,8 @@ export default function SignInPage() {
       </main>
     )
   }
+
+  const { SignIn } = await import('@clerk/nextjs')
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[color:var(--background)] px-6 py-16 text-white">
