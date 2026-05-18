@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'HUDForge — Cinematic Roblox UI, Faster',
+  title: 'HUDForge - Cinematic Roblox UI, Faster',
   description:
     'HUDForge helps Roblox builders generate polished HUDs, menus, and UI systems with transparent PNGs, structured Luau hierarchies, and a premium game-menu aesthetic.',
 }

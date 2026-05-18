@@ -40,10 +40,24 @@ LEMON_SQUEEZY_STORE_ID=your_store_id
 
 See `.env.local.example` for full list.
 
+## Marketing Route Map
+
+The public marketing frontend is a multi-page App Router site backed by typed local content in `lib/marketing-content.ts`.
+
+- `/` - home
+- `/templates` and `/templates/[id]` - static template gallery and details
+- `/how-it-works` - Roblox UI workflow overview
+- `/pricing` - beta pricing and FAQs
+- `/blog` and `/blog/[slug]` - local blog index and article pages
+- `/documentation` - quick-start documentation landing
+- `/contact` - contact channels and waitlist CTA
+
+The waitlist UI posts to the existing `app/api/waitlist/route.ts` endpoint. Template, blog, pricing, docs, nav, contact, and image prompt content is currently local typed data so the frontend can ship without adding CMS or backend complexity.
+
 ## Stack
 
-- **Framework:** Next.js 14 (App Router)
-- **Styling:** Tailwind CSS
+- **Framework:** Next.js 16 (App Router)
+- **Styling:** Tailwind CSS v4
 - **Auth:** Clerk
 - **Database:** Supabase
 - **Payments:** Lemon Squeezy

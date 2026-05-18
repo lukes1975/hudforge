@@ -7,7 +7,7 @@ export interface RevenueEvent {
     currency?: string
     type: 'subscription_created' | 'subscription_renewed' | 'refund' | 'one_time'
     event_time?: Date
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
 }
 
 export interface MrrSnapshot {
