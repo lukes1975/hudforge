@@ -3,6 +3,8 @@ import { ClerkProvider } from '@clerk/nextjs'
 import { Geist_Mono, Inter, Space_Grotesk } from 'next/font/google'
 import './globals.css'
 
+const hasClerkPublishableKey = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
+
 const inter = Inter({
   variable: '--font-inter',
   subsets: ['latin'],
@@ -29,11 +31,11 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const content = hasClerkPublishableKey ? <ClerkProvider>{children}</ClerkProvider> : children
+
   return (
     <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full bg-[color:var(--background)] text-white">
-        <ClerkProvider>{children}</ClerkProvider>
-      </body>
+      <body className="min-h-full bg-[color:var(--background)] text-white">{content}</body>
     </html>
   )
 }

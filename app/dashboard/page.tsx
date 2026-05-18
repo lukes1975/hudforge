@@ -6,7 +6,24 @@ import RetentionMetricsDashboard from '@/components/dashboard/RetentionMetricsDa
 import AlertPanel from '@/components/dashboard/AlertPanel';
 import WeeklyTargets from '@/components/dashboard/WeeklyTargets';
 
+const hasClerkKeys = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY)
+
 export default async function DashboardPage() {
+    if (!hasClerkKeys) {
+        return (
+            <main className="flex min-h-screen items-center justify-center bg-gradient-to-b from-gray-900 via-gray-900 to-black px-6 py-16 text-white">
+                <div className="w-full max-w-xl rounded-[1.5rem] border border-white/10 bg-white/5 p-8 text-center shadow-2xl shadow-black/30">
+                    <p className="text-sm uppercase text-cyan-300">Clerk setup incomplete</p>
+                    <h1 className="mt-4 text-3xl font-semibold">Add your Clerk keys to unlock the dashboard.</h1>
+                    <p className="mt-4 text-base leading-7 text-slate-300">
+                        The protected dashboard is deployed, but Clerk is not fully connected yet because the required
+                        production auth keys are still missing.
+                    </p>
+                </div>
+            </main>
+        );
+    }
+
     await auth.protect();
 
     return (
