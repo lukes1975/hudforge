@@ -344,6 +344,29 @@ body::before {
   transform: translateY(-1px);
 }
 
+.legal-prose {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.legal-prose h1,
+.legal-prose h2,
+.legal-prose h3 {
+  letter-spacing: -0.03em;
+}
+
+.legal-prose p,
+.legal-prose li,
+.legal-prose blockquote {
+  max-width: 78ch;
+}
+
+.legal-doc {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0)),
+    rgba(8, 12, 26, 0.92);
+}
+
 .brand-mark {
   filter: drop-shadow(0 0 10px rgba(0, 209, 255, 0.12));
 }

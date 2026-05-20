@@ -49,6 +49,26 @@ export default function PricingPage() {
               </article>
             ))}
           </div>
+          <div className="section-shell mt-6">
+            <div className="rune-card border-white/10 bg-white/[0.03] p-5 text-sm leading-7 text-slate-300">
+              <p className="font-semibold text-white">Billing and launch policy links</p>
+              <p className="mt-3">
+                Before purchasing or joining paid access, review our{' '}
+                <Link href="/legal/terms" className="premium-link">
+                  Terms of Service
+                </Link>
+                ,{' '}
+                <Link href="/legal/privacy" className="premium-link">
+                  Privacy Policy
+                </Link>
+                , and{' '}
+                <Link href="/legal/refunds" className="premium-link">
+                  Refund Policy
+                </Link>
+                .
+              </p>
+            </div>
+          </div>
         </section>
 
         <section className="px-5 py-12 sm:px-6 lg:px-8">
