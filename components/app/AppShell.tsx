@@ -1,8 +1,8 @@
-import { auth } from '@clerk/nextjs/server'
 import { SignOutButton } from '@clerk/nextjs'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
+import { getHudforgeAuthState } from '@/lib/hudforge-auth'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard' },
@@ -21,9 +21,9 @@ export async function AppShell({
   description: string
   children: ReactNode
 }) {
-  const { userId } = await auth()
+  const authState = await getHudforgeAuthState()
 
-  if (!userId) {
+  if (!authState.userId) {
     redirect('/sign-in')
   }
 
@@ -64,9 +64,13 @@ export async function AppShell({
                     </Link>
                   ))}
                 </nav>
-                <SignOutButton>
-                  <button className="forge-button forge-button--secondary">Sign out</button>
-                </SignOutButton>
+                {authState.mode === 'local-e2e-bypass' ? (
+                  <span className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">Local E2E auth</span>
+                ) : (
+                  <SignOutButton>
+                    <button className="forge-button forge-button--secondary">Sign out</button>
+                  </SignOutButton>
+                )}
               </div>
             </div>
           </header>

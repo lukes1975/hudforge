@@ -1,4 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { getE2EAuthBypassHeaderName, getE2EAuthBypassUserId } from '@/lib/hudforge-auth'
 
 const isProtectedRoute = createRouteMatcher([
   '/dashboard(.*)',
@@ -17,6 +18,9 @@ const isProtectedRoute = createRouteMatcher([
 
 export default clerkMiddleware((auth, request) => {
   if (isProtectedRoute(request)) {
+    const bypassUserId = getE2EAuthBypassUserId(request.headers.get(getE2EAuthBypassHeaderName()))
+    if (bypassUserId) return
+
     auth.protect()
   }
 })

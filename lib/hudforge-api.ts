@@ -1,9 +1,9 @@
-import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
+import { getHudforgeUserId } from './hudforge-auth'
 import { HudforgeServiceError } from './hudforge-generation'
 
 export async function requireHudforgeUser() {
-  const { userId } = await auth()
+  const userId = await getHudforgeUserId()
   if (!userId) {
     throw new HudforgeServiceError('Authentication required', 401, 'unauthorized')
   }

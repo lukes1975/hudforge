@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import { Analytics } from '@/components/Analytics'
 import { ClerkProvider } from '@clerk/nextjs'
+import { headers } from 'next/headers'
 import { Geist_Mono, Inter, Space_Grotesk } from 'next/font/google'
+import { getE2EAuthBypassHeaderName, getE2EAuthBypassUserId } from '@/lib/hudforge-auth'
 import './globals.css'
 
 const inter = Inter({
@@ -33,18 +35,24 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const requestHeaders = await headers()
+  const e2eBypassUserId = getE2EAuthBypassUserId(requestHeaders.get(getE2EAuthBypassHeaderName()))
+  const content = (
+    <>
+      {children}
+      <Analytics />
+    </>
+  )
+
   return (
     <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full bg-[color:var(--background)] text-white">
-        <ClerkProvider>
-          {children}
-          <Analytics />
-        </ClerkProvider>
+        {e2eBypassUserId ? content : <ClerkProvider>{content}</ClerkProvider>}
       </body>
     </html>
   )
