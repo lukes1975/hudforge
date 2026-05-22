@@ -72,8 +72,8 @@ export function MarketingHeader() {
           <Link href="/sign-in" className="forge-header__signin">
             Sign In
           </Link>
-          <Link href="/contact#waitlist" className="forge-button forge-button--primary forge-button--small">
-            Get Started
+          <Link href="/generate" className="forge-button forge-button--primary forge-button--small">
+            Generate UI
           </Link>
           <button
             ref={buttonRef}
@@ -114,8 +114,8 @@ export function MarketingHeader() {
             <Link href="/sign-up" className="forge-button forge-button--secondary" onClick={closeMenu}>
               Create Account
             </Link>
-            <Link href="/contact#waitlist" className="forge-button forge-button--primary" onClick={closeMenu}>
-              Join Waitlist
+            <Link href="/generate" className="forge-button forge-button--primary" onClick={closeMenu}>
+              Generate UI
             </Link>
           </div>
         </div>

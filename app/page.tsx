@@ -26,8 +26,8 @@ export default function Home() {
                 HUDForge turns cyber-fantasy direction, Roblox UI patterns, and export notes into a faster workflow for builders who care about game feel.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link href="/contact#waitlist" className="forge-button forge-button--primary">
-                  Get Started
+                <Link href="/generate" className="forge-button forge-button--primary">
+                  Generate UI
                 </Link>
                 <Link href="/templates" className="forge-button forge-button--secondary">
                   Explore Templates

@@ -106,14 +106,14 @@ export async function createGeneration(prompt: string, style?: string): Promise<
 
   if (!token) {
     const id = `mock_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
-    const imageUrl = `https://placehold.co/512x512/png?text=${encodeURIComponent(analysis.uiType)}`
+    const imageUrl = buildMockImageDataUrl(analysis.uiType, analysis.style, prompt)
     rememberGeneration({ id, prompt, style, luauCode, createdAt, analysis })
     mockStatuses.set(id, { createdAt: Date.now(), imageUrl })
 
     return {
       id,
       status: 'queued',
-      imageUrl: null,
+      imageUrl,
       luauCode,
       prompt,
       style,
@@ -318,6 +318,55 @@ function isReplicateApiError(error: unknown): error is { response: Response } {
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function buildMockImageDataUrl(uiType: string, style: string, prompt: string) {
+  const title = escapeXml(`HUDForge ${uiType}`)
+  const subtitle = escapeXml(style)
+  const promptLine = escapeXml(prompt.length > 80 ? `${prompt.slice(0, 77)}…` : prompt)
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+      <defs>
+        <linearGradient id="bg" x1="96" y1="80" x2="928" y2="944" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#071225"/>
+          <stop offset="0.48" stop-color="#0d1a33"/>
+          <stop offset="1" stop-color="#050816"/>
+        </linearGradient>
+        <linearGradient id="accent" x1="180" y1="160" x2="864" y2="876" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#00D1FF" stop-opacity="0.34"/>
+          <stop offset="1" stop-color="#7C5CFF" stop-opacity="0.22"/>
+        </linearGradient>
+      </defs>
+      <rect width="1024" height="1024" rx="72" fill="url(#bg)"/>
+      <circle cx="236" cy="232" r="192" fill="#00D1FF" fill-opacity="0.08"/>
+      <circle cx="786" cy="756" r="246" fill="#7C5CFF" fill-opacity="0.08"/>
+      <rect x="116" y="124" width="792" height="776" rx="56" fill="url(#accent)" fill-opacity="0.24" stroke="rgba(255,255,255,0.16)"/>
+      <rect x="176" y="186" width="672" height="104" rx="28" fill="rgba(255,255,255,0.08)"/>
+      <rect x="176" y="330" width="300" height="368" rx="32" fill="rgba(255,255,255,0.07)"/>
+      <rect x="500" y="330" width="348" height="180" rx="32" fill="rgba(255,255,255,0.07)"/>
+      <rect x="500" y="542" width="348" height="156" rx="32" fill="rgba(255,255,255,0.07)"/>
+      <rect x="208" y="370" width="236" height="24" rx="12" fill="#FFFFFF" fill-opacity="0.86"/>
+      <rect x="208" y="414" width="192" height="20" rx="10" fill="#94A3B8" fill-opacity="0.82"/>
+      <rect x="208" y="458" width="140" height="20" rx="10" fill="#94A3B8" fill-opacity="0.64"/>
+      <rect x="536" y="372" width="164" height="18" rx="9" fill="#00D1FF" fill-opacity="0.88"/>
+      <rect x="536" y="414" width="264" height="28" rx="14" fill="#0F172A" fill-opacity="0.9" stroke="rgba(0,209,255,0.34)"/>
+      <rect x="536" y="584" width="264" height="28" rx="14" fill="#0F172A" fill-opacity="0.9" stroke="rgba(124,92,255,0.34)"/>
+      <text x="176" y="120" fill="#E2E8F0" font-family="Inter, Arial, sans-serif" font-size="40" font-weight="700">${title}</text>
+      <text x="176" y="150" fill="#8FA3BD" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="500">${subtitle}</text>
+      <text x="176" y="790" fill="#D7E3F0" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="600">${promptLine}</text>
+    </svg>
+  `.trim()
+
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+}
+
+function escapeXml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
 }
 
 function createHeader(prompt: string, analysis: PromptAnalysis): string {

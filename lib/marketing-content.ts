@@ -33,6 +33,7 @@ export type BlogPost = {
 }
 
 export const navItems: NavItem[] = [
+  { label: 'Generate', href: '/generate' },
   { label: 'Templates', href: '/templates' },
   { label: 'How It Works', href: '/how-it-works' },
   { label: 'Pricing', href: '/pricing' },

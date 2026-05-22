@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Analytics } from '@/components/Analytics'
+import { ClerkProvider } from '@clerk/nextjs'
 import { Geist_Mono, Inter, Space_Grotesk } from 'next/font/google'
 import './globals.css'
 
@@ -40,8 +41,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full bg-[color:var(--background)] text-white">
-        {children}
-        <Analytics />
+        <ClerkProvider>
+          {children}
+          <Analytics />
+        </ClerkProvider>
       </body>
     </html>
   )

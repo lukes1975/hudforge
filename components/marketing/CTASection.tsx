@@ -12,11 +12,11 @@ export function CTASection({ source = 'cta_section' }: { source?: string }) {
             Join the waitlist for founder pricing, early template access, and product updates focused on Roblox creators.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
+            <Link href="/generate" className="forge-button forge-button--primary">
+              Generate UI
+            </Link>
             <Link href="/templates" className="forge-button forge-button--secondary">
               Explore Templates
-            </Link>
-            <Link href="/documentation" className="forge-button forge-button--secondary">
-              Read Docs
             </Link>
           </div>
         </div>

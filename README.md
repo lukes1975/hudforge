@@ -1,6 +1,6 @@
-# HUD Forge
+# HUDForge
 
-AI-powered Roblox UI workflow platform. Generate production-ready transparent PNGs and clean Luau code from simple prompts.
+Roblox UI workflow platform. Generate structured UI specs, mock-safe asset bundles, browser previews, and deterministic Luau/json_payload exports from simple prompts.
 
 ## Setup
 
@@ -54,6 +54,29 @@ The public marketing frontend is a multi-page App Router site backed by typed lo
 
 The waitlist UI posts to the existing `app/api/waitlist/route.ts` endpoint. Template, blog, pricing, docs, nav, contact, and image prompt content is currently local typed data so the frontend can ship without adding CMS or backend complexity.
 
+## Authenticated Generation Foundation
+
+Protected Clerk routes:
+
+- `/dashboard` - generation-focused activation dashboard
+- `/generate` - primary prompt to preview to export workflow
+- `/projects` - generation history surface
+- `/settings` - generation defaults
+- `/billing` - mock-safe billing readiness
+
+Generation APIs:
+
+- `POST /api/generate/optimize`
+- `POST /api/generate/assets`
+- `POST /api/generate/export`
+- `GET /api/generations`
+- `POST /api/usage/event`
+- `GET /api/settings`
+- `POST /api/settings`
+- `GET /api/billing/status`
+
+The authenticated flow is mock-safe by default. It does not require external LLM, image, billing, or database keys for local development. Export returns a `json_payload` package containing `manifest.json`, `layout.json`, `code/MainUI.lua`, and `assets/assets.json`.
+
 ## Brand + Distribution Assets
 
 Launch/distribution scaffolding now lives in-repo:
@@ -74,7 +97,7 @@ Launch/distribution scaffolding now lives in-repo:
 - **Auth:** Clerk
 - **Database:** Supabase
 - **Payments:** Lemon Squeezy
-- **AI:** Replicate (Flux models)
+- **AI:** Deterministic mock foundation for authenticated generation; Replicate remains for the legacy public API route
 - **Deployment:** Vercel
 
 ## Development
