@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 type WaitlistPayload = {
   email?: string
   source?: string
+  metadata?: Record<string, unknown>
 }
 
 function getAdminClient() {
@@ -36,23 +37,20 @@ export async function POST(req: NextRequest) {
     const metadata = {
       referer: req.headers.get('referer') ?? undefined,
       userAgent: req.headers.get('user-agent') ?? undefined,
+      ...body.metadata,
     }
 
-    const { error } = await supabase
-      .from('waitlist')
-      .upsert(
-        {
-          email,
-          source,
-          metadata,
-        },
-        {
-          onConflict: 'email',
-          ignoreDuplicates: true,
-        }
-      )
+    const { error } = await supabase.from('waitlist').insert({
+      email,
+      source,
+      metadata,
+    })
 
     if (error) {
+      if (error.code === '23505') {
+        return NextResponse.json({ success: true, message: 'Already on waitlist', email })
+      }
+
       throw error
     }
 
