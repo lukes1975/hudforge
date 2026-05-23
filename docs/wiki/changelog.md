@@ -2,6 +2,32 @@
 
 Simple record of meaningful changes.
 
+## 2026-05-23 — Cost tracking and rate limits added
+
+Changed:
+
+- Added provider cost estimate metadata to optimizer and asset-bundle usage events.
+- Added matching estimated-cost metadata to credit ledger debit rows.
+- Added service-level per-user hourly rate limits before expensive provider calls.
+- Rate-limited requests now return structured `rate_limited` errors with stage, limit, used count, and window.
+- Added repository usage-event listing for both memory and Supabase-backed repositories.
+
+Why it matters:
+
+- HUDForge no longer runs provider usage blind.
+- Rate limits stop margin-destroying unlimited usage before Lemon Squeezy is live.
+- Cost metadata gives the analytics/billing layer enough signal to compare credits consumed against estimated provider spend.
+
+Verification:
+
+- Added cost/rate-limit tests.
+- Confirmed rate limits happen before provider calls and before asset credit debits.
+- Targeted generation/credit/analytics suites passed.
+
+Follow-up:
+
+- Connect Lemon Squeezy checkout/webhooks next.
+
 ## 2026-05-23 — ZIP export and Roblox import guide added
 
 Changed:

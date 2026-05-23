@@ -44,6 +44,13 @@ Credits are enforced before generation work:
 - FAL asset bundle generation: 5 credits
 - failed asset generation refunds the 5-credit asset debit and marks the generation failed
 
+Cost controls are enforced before provider calls:
+
+- optimizer: 12 requests per user per hour by default
+- asset bundles: 4 bundles per user per hour by default
+- optimizer usage events and credit debits include estimated provider cost metadata
+- asset bundle usage events and credit debits include estimated FAL bundle cost metadata
+
 ## Provider Strategy
 
 Prompt/spec generation still has deterministic local structure while OpenRouter/Gemini integration is wired as the next provider layer. Asset generation is no longer silently mocked in the authenticated flow:

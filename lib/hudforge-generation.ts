@@ -46,8 +46,9 @@ export interface ExportPackagePayload extends ExportResponse { filename: string;
 export interface BillingPlan { id: 'free' | 'starter' | 'pro'; name: string; price_gbp_monthly: number; credits: number; cta: string }
 export type BillingState = 'free' | 'trial' | 'active_paid' | 'past_due' | 'canceled' | 'unknown_mock'
 export interface BillingStatus { state: BillingState; current_plan: BillingPlan; credits_included: number; credits_used: number; credits_remaining: number; checkout_ready: boolean; customer_portal_ready: boolean; provider: 'lemon_squeezy' | 'mock' }
-export type UsageEventName = 'generation_started' | 'prompt_optimized' | 'assets_generated' | 'preview_loaded' | 'export_clicked' | 'generation_failed' | 'settings_updated' | 'credit_debited' | 'credit_refunded'
+export type UsageEventName = 'generation_started' | 'prompt_optimized' | 'assets_generated' | 'preview_loaded' | 'export_clicked' | 'generation_failed' | 'settings_updated' | 'credit_debited' | 'credit_refunded' | 'generation_rate_limited'
 export interface UsageEvent { name: UsageEventName; generation_id?: string; generationId?: string; metadata?: Record<string, string | number | boolean> }
+export interface UsageEventRecord extends UsageEvent { user_id: string; created_at: string }
 export type HudforgeUsageEvent = UsageEvent
 export interface Generation { id: string; user_id: string; title: string; prompt: string; ui_type: UiType; style: GenerationStyle; status: GenerationStatus; created_at: string; updated_at: string; optimized_spec?: OptimizedGenerationSpec; asset_bundle?: AssetBundle; export_package?: ExportPackagePayload; error?: string }
 export interface OptimizeGenerationInput { prompt: string; ui_type?: string; uiType?: string; style?: string; user_settings?: Partial<UserSettings> }
@@ -58,6 +59,12 @@ export interface CreditLedgerEntry { id: string; user_id: string; delta: number;
 const INITIAL_FREE_CREDITS = 25
 const OPTIMIZE_CREDIT_COST = 1
 const ASSET_CREDIT_COST = 5
+const OPTIMIZER_ESTIMATED_COST_USD = 0.001
+const FAL_ASSET_ESTIMATED_COST_USD = 0.025
+const FAL_BUNDLE_ASSET_COUNT = 5
+const DEFAULT_RATE_LIMITS: RateLimitPolicy = { optimizePerHour: 12, assetBundlesPerHour: 4 }
+
+export interface RateLimitPolicy { optimizePerHour: number; assetBundlesPerHour: number }
 
 const defaultSettings: UserSettings = { default_export_format: 'zip', mobile_first: true, default_ui_type: 'shop_ui', default_style: 'neon', save_history: true }
 const freePlan: BillingPlan = { id: 'free', name: 'Free', price_gbp_monthly: 0, credits: INITIAL_FREE_CREDITS, cta: 'Current plan' }
@@ -67,7 +74,7 @@ export interface OptimizerProviderInput { generation_id: string; prompt: string;
 type OptimizerProvider = (input: OptimizerProviderInput) => Promise<OptimizedGenerationSpec>
 
 export class HudforgeServiceError extends Error {
-  constructor(message: string, public readonly status: number, public readonly code: string) { super(message) }
+  constructor(message: string, public readonly status: number, public readonly code: string, public readonly details?: Record<string, string | number | boolean>) { super(message) }
 }
 
 export interface HudforgeRepository {
@@ -81,36 +88,40 @@ export interface HudforgeRepository {
   getCreditBalance(userId: string): Promise<number>
   addCreditLedgerEntry(userId: string, delta: number, reason: CreditLedgerEntry['reason'], generationId?: string, metadata?: Record<string, unknown>): Promise<CreditLedgerEntry>
   listCreditLedger(userId: string): Promise<CreditLedgerEntry[]>
+  listUsageEvents(userId: string): Promise<UsageEventRecord[]>
 }
 
-export function createRepositoryBackedHudforgeService(repository: HudforgeRepository, deps: { assetProvider?: FalAssetProvider; optimizerProvider?: OptimizerProvider } = {}) {
+export function createRepositoryBackedHudforgeService(repository: HudforgeRepository, deps: { assetProvider?: FalAssetProvider; optimizerProvider?: OptimizerProvider; rateLimits?: Partial<RateLimitPolicy> } = {}) {
   const assetProvider = deps.assetProvider ?? generateFalAssetsForSpec
   const optimizerProvider = deps.optimizerProvider ?? createDefaultOptimizerProvider()
+  const rateLimits: RateLimitPolicy = { ...DEFAULT_RATE_LIMITS, ...(deps.rateLimits ?? {}) }
 
   return {
     async createOptimizedGeneration(userId: string, input: OptimizeGenerationInput): Promise<Generation> {
+      await enforceRateLimit(repository, userId, 'optimizer', rateLimits.optimizePerHour)
       await ensureCredits(repository, userId)
-      await debitCredits(repository, userId, OPTIMIZE_CREDIT_COST, 'generation_optimize')
+      await debitCredits(repository, userId, OPTIMIZE_CREDIT_COST, 'generation_optimize', undefined, optimizerCostMetadata())
       const { prompt, ui_type, style, user_settings } = validatePromptInput(input)
       const now = new Date().toISOString()
       const id = `gen_${stableId(`${userId}:${prompt}:${ui_type}:${style}:${now}`).slice(0, 12)}`
       const optimized_spec = await optimizerProvider({ generation_id: id, prompt, ui_type, style, user_settings })
       const generation: Generation = { id, user_id: userId, title: buildTitle(prompt, ui_type), prompt, ui_type, style, status: 'optimized', created_at: now, updated_at: now, optimized_spec }
       await repository.upsertGeneration(generation)
-      await repository.recordUsageEvent(userId, { name: 'generation_started', generation_id: id })
-      await repository.recordUsageEvent(userId, { name: 'prompt_optimized', generation_id: id })
+      await repository.recordUsageEvent(userId, { name: 'generation_started', generation_id: id, metadata: { stage: 'optimizer' } })
+      await repository.recordUsageEvent(userId, { name: 'prompt_optimized', generation_id: id, metadata: optimizerCostMetadata() })
       return generation
     },
 
     async createAssetsForGeneration(userId: string, generationId: string): Promise<Generation> {
+      await enforceRateLimit(repository, userId, 'asset_bundle', rateLimits.assetBundlesPerHour)
       await ensureCredits(repository, userId)
-      await debitCredits(repository, userId, ASSET_CREDIT_COST, 'asset_generation', generationId)
+      await debitCredits(repository, userId, ASSET_CREDIT_COST, 'asset_generation', generationId, assetCostMetadata())
       const generation = await requireGenerationFromRepo(repository, userId, generationId)
       if (!generation.optimized_spec) throw new HudforgeServiceError('Generation must be optimized before assets are created', 409, 'layout_missing')
       try {
         const asset_bundle = await assetProvider(generation.optimized_spec)
         const updated = await updateGeneration(repository, generation, { status: 'assets_ready', asset_bundle })
-        await repository.recordUsageEvent(userId, { name: 'assets_generated', generation_id: generation.id })
+        await repository.recordUsageEvent(userId, { name: 'assets_generated', generation_id: generation.id, metadata: assetCostMetadata() })
         await repository.recordUsageEvent(userId, { name: 'preview_loaded', generation_id: generation.id })
         return updated
       } catch (error) {
@@ -141,7 +152,7 @@ export function createRepositoryBackedHudforgeService(repository: HudforgeReposi
 export function memoryHudforgeRepository(options: { initialCredits?: number } = {}): HudforgeRepository {
   const generations = new Map<string, Generation>()
   const settingsByUser = new Map<string, UserSettings>()
-  const usageEvents: Array<UsageEvent & { user_id: string; created_at: string }> = []
+  const usageEvents: UsageEventRecord[] = []
   const ledger: CreditLedgerEntry[] = []
   const initialCredits = options.initialCredits ?? INITIAL_FREE_CREDITS
   return {
@@ -155,6 +166,7 @@ export function memoryHudforgeRepository(options: { initialCredits?: number } = 
     async getCreditBalance(userId) { await this.ensureInitialCredits(userId, initialCredits); return ledger.filter((entry) => entry.user_id === userId).reduce((total, entry) => total + entry.delta, 0) },
     async addCreditLedgerEntry(userId, delta, reason, generationId, metadata) { const balanceBefore = ledger.filter((entry) => entry.user_id === userId).reduce((total, entry) => total + entry.delta, 0); const entry: CreditLedgerEntry = { id: `cle_${stableId(`${userId}:${reason}:${Date.now()}:${Math.random()}`).slice(0, 12)}`, user_id: userId, delta, balance_after: balanceBefore + delta, reason, generation_id: generationId ?? null, metadata, created_at: new Date().toISOString() }; ledger.push(entry); return entry },
     async listCreditLedger(userId) { await this.ensureInitialCredits(userId, initialCredits); return ledger.filter((entry) => entry.user_id === userId).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at)) },
+    async listUsageEvents(userId) { return usageEvents.filter((event) => event.user_id === userId).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at)) },
   }
 }
 
@@ -181,6 +193,7 @@ export function supabaseHudforgeRepository(): HudforgeRepository {
     async getCreditBalance(userId) { await this.ensureInitialCredits(userId, INITIAL_FREE_CREDITS); const supabase = await client(); const { data, error } = await supabase.from('hudforge_credit_ledger').select('delta').eq('user_id', userId); if (error) throw dbError(error, 'Failed to load credit balance'); return (data ?? []).reduce((total, row: { delta: number }) => total + row.delta, 0) },
     async addCreditLedgerEntry(userId, delta, reason, generationId, metadata) { const supabase = await client(); await ensureProfile(supabase, userId); const { data: rows, error: balanceError } = await supabase.from('hudforge_credit_ledger').select('delta').eq('user_id', userId); if (balanceError) throw dbError(balanceError, 'Failed to load credit balance'); const balanceAfter = (rows ?? []).reduce((total, row: { delta: number }) => total + row.delta, 0) + delta; const row = { user_id: userId, delta, balance_after: balanceAfter, reason, generation_id: generationId ?? null, metadata: metadata ?? {} }; const { data, error } = await supabase.from('hudforge_credit_ledger').insert(row).select('*').single(); if (error) throw dbError(error, 'Failed to write credit ledger'); return data as CreditLedgerEntry },
     async listCreditLedger(userId) { await this.ensureInitialCredits(userId, INITIAL_FREE_CREDITS); const supabase = await client(); const { data, error } = await supabase.from('hudforge_credit_ledger').select('*').eq('user_id', userId).order('created_at', { ascending: true }); if (error) throw dbError(error, 'Failed to list credit ledger'); return (data ?? []) as CreditLedgerEntry[] },
+    async listUsageEvents(userId) { const supabase = await client(); const { data, error } = await supabase.from('hudforge_usage_events').select('user_id,event_name,generation_id,metadata,created_at').eq('user_id', userId).order('created_at', { ascending: true }); if (error) throw dbError(error, 'Failed to list usage events'); return (data ?? []).map((row: { user_id: string; event_name: UsageEventName; generation_id?: string | null; metadata?: Record<string, string | number | boolean>; created_at: string }) => ({ user_id: row.user_id, name: row.event_name, generation_id: row.generation_id ?? undefined, metadata: row.metadata ?? {}, created_at: row.created_at })) },
   }
 }
 
@@ -419,7 +432,24 @@ function sanitizeRobloxName(value: string) { return toRobloxIdentifier(value).sl
 function clamp(value: number, min: number, max: number) { return Math.max(min, Math.min(max, value)) }
 
 async function ensureCredits(repository: HudforgeRepository, userId: string) { await repository.ensureInitialCredits(userId, INITIAL_FREE_CREDITS) }
-async function debitCredits(repository: HudforgeRepository, userId: string, amount: number, reason: CreditLedgerEntry['reason'], generationId?: string) { const balance = await repository.getCreditBalance(userId); if (balance < amount) throw new HudforgeServiceError(`Insufficient credits. Required ${amount}, available ${balance}.`, 402, 'insufficient_credits'); await repository.addCreditLedgerEntry(userId, -amount, reason, generationId) }
+async function debitCredits(repository: HudforgeRepository, userId: string, amount: number, reason: CreditLedgerEntry['reason'], generationId?: string, metadata?: Record<string, unknown>) { const balance = await repository.getCreditBalance(userId); if (balance < amount) throw new HudforgeServiceError(`Insufficient credits. Required ${amount}, available ${balance}.`, 402, 'insufficient_credits', { required: amount, available: balance }); await repository.addCreditLedgerEntry(userId, -amount, reason, generationId, metadata) }
+
+async function enforceRateLimit(repository: HudforgeRepository, userId: string, stage: 'optimizer' | 'asset_bundle', limit: number) {
+  const windowSeconds = 3600
+  const safeLimit = Math.max(0, Math.floor(limit))
+  const since = Date.now() - windowSeconds * 1000
+  const eventName: UsageEventName = stage === 'optimizer' ? 'prompt_optimized' : 'assets_generated'
+  const events = await repository.listUsageEvents(userId)
+  const count = events.filter((event) => event.name === eventName && Date.parse(event.created_at) >= since).length
+  if (count >= safeLimit) {
+    const metadata = { stage, limit: safeLimit, used: count, window_seconds: windowSeconds }
+    await repository.recordUsageEvent(userId, { name: 'generation_rate_limited', metadata })
+    throw new HudforgeServiceError(`Rate limit reached for ${stage}. Try again later.`, 429, 'rate_limited', metadata)
+  }
+}
+function optimizerCostMetadata(): Record<string, string | number | boolean> { return { provider: process.env.OPENROUTER_API_KEY ? 'openrouter' : 'openrouter_or_mock', cost_stage: 'optimizer', estimated_cost_usd: OPTIMIZER_ESTIMATED_COST_USD } }
+function assetCostMetadata(): Record<string, string | number | boolean> { return { provider: 'fal', cost_stage: 'asset_bundle', estimated_cost_usd: FAL_ASSET_ESTIMATED_COST_USD * FAL_BUNDLE_ASSET_COUNT, asset_count: FAL_BUNDLE_ASSET_COUNT } }
+
 async function requireGenerationFromRepo(repository: HudforgeRepository, userId: string, generationId: string) { const generation = await repository.getGeneration(userId, generationId); if (!generation) throw new HudforgeServiceError('Generation not found', 404, 'generation_not_found'); return generation }
 async function updateGeneration(repository: HudforgeRepository, generation: Generation, updates: Partial<Generation>) { const updated = { ...generation, ...updates, updated_at: new Date().toISOString() }; return repository.upsertGeneration(updated) }
 async function getBillingStatusFromRepository(repository: HudforgeRepository, userId: string): Promise<BillingStatus> { const balance = await repository.getCreditBalance(userId); const ledger = await repository.listCreditLedger(userId); const credits_used = Math.abs(ledger.filter((entry) => entry.delta < 0).reduce((total, entry) => total + entry.delta, 0)); const checkout_ready = Boolean(process.env.LEMON_SQUEEZY_API_KEY && process.env.LEMON_SQUEEZY_STORE_ID); return { state: checkout_ready ? 'free' : 'unknown_mock', current_plan: freePlan, credits_included: freePlan.credits, credits_used, credits_remaining: balance, checkout_ready, customer_portal_ready: checkout_ready, provider: checkout_ready ? 'lemon_squeezy' : 'mock' } }

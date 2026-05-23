@@ -24,4 +24,5 @@ Keep it simple. Avoid jargon unless it is necessary.
 - [Durable Analytics](./durable-analytics.md)
 - [OpenRouter Gemini Optimizer](./openrouter-gemini-optimizer.md)
 - [ZIP Export](./zip-export.md)
+- [Cost Controls](./cost-controls.md)
 - [Change Log](./changelog.md)
