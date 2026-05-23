@@ -2,6 +2,31 @@
 
 Simple record of meaningful changes.
 
+## 2026-05-23 — Production smoke audit recorded
+
+Changed:
+
+- Checked `https://www.hudforge.app` route availability.
+- Checked a Vercel preview deployment for app route existence.
+- Ran local authenticated app/API smoke with the E2E bypass.
+- Added `docs/wiki/production-smoke-audit.md`.
+
+Why it matters:
+
+- Production custom domain is still serving older `main` and does not expose the new `/generate`, `/billing`, settings, or app API routes.
+- `develop` has the SaaS app work but needs explicit production promotion before creator-facing tests.
+
+Verification:
+
+- Production marketing routes returned 200, but key SaaS routes returned 404.
+- Preview app routes existed but returned 401 due deployment/auth protection.
+- Local `develop` app/API routes returned 200 with `HUD_FORGE_E2E_AUTH_BYPASS=1`.
+
+Follow-up:
+
+- Ask Luke before merging/promoting `develop` to `main` because that deploys production.
+- Do not add Lemon Squeezy env vars yet.
+
 ## 2026-05-23 — Lemon Squeezy checkout and webhook credit grants added
 
 Changed:

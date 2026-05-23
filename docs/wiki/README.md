@@ -26,4 +26,5 @@ Keep it simple. Avoid jargon unless it is necessary.
 - [ZIP Export](./zip-export.md)
 - [Cost Controls](./cost-controls.md)
 - [Lemon Squeezy Billing](./lemon-squeezy-billing.md)
+- [Production Smoke Audit](./production-smoke-audit.md)
 - [Change Log](./changelog.md)
