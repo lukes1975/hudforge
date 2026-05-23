@@ -2,6 +2,31 @@
 
 Simple record of meaningful changes.
 
+## 2026-05-23 — Real OpenRouter/Gemini optimizer added
+
+Changed:
+
+- Added OpenRouter Gemini 2.5 Flash optimizer provider.
+- Wired the generation service to use the real optimizer when `OPENROUTER_API_KEY` is configured.
+- Added strict JSON parsing and normalization for provider output.
+- Kept deterministic backend generation for Luau/export structure so raw LLM text is not used as executable code.
+- Added local smoke script for OpenRouter optimizer.
+
+Why it matters:
+
+- Prompt optimization is no longer just deterministic mock logic when the provider key exists.
+- HUDForge can interpret Roblox UI prompts with a real LLM while preserving a safe fixed 5-asset generation bundle.
+- The provider integration is cost-controlled and schema-validated before FAL asset generation.
+
+Verification:
+
+- Added OpenRouter optimizer tests.
+- Live OpenRouter smoke passed with 5 asset prompts, mobile canvas, and generated Lua instance tree.
+
+Follow-up:
+
+- Surface provider/cost metadata in durable analytics after cost tracking is added.
+
 ## 2026-05-23 — Durable analytics moved to HUDForge SaaS tables
 
 Changed:

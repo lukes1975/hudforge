@@ -63,6 +63,8 @@ const defaultSettings: UserSettings = { default_export_format: 'zip', mobile_fir
 const freePlan: BillingPlan = { id: 'free', name: 'Free', price_gbp_monthly: 0, credits: INITIAL_FREE_CREDITS, cta: 'Current plan' }
 
 type FalAssetProvider = (spec: OptimizedGenerationSpec) => Promise<AssetBundle>
+export interface OptimizerProviderInput { generation_id: string; prompt: string; ui_type: UiType; style: GenerationStyle; user_settings: UserSettings }
+type OptimizerProvider = (input: OptimizerProviderInput) => Promise<OptimizedGenerationSpec>
 
 export class HudforgeServiceError extends Error {
   constructor(message: string, public readonly status: number, public readonly code: string) { super(message) }
@@ -81,8 +83,9 @@ export interface HudforgeRepository {
   listCreditLedger(userId: string): Promise<CreditLedgerEntry[]>
 }
 
-export function createRepositoryBackedHudforgeService(repository: HudforgeRepository, deps: { assetProvider?: FalAssetProvider } = {}) {
+export function createRepositoryBackedHudforgeService(repository: HudforgeRepository, deps: { assetProvider?: FalAssetProvider; optimizerProvider?: OptimizerProvider } = {}) {
   const assetProvider = deps.assetProvider ?? generateFalAssetsForSpec
+  const optimizerProvider = deps.optimizerProvider ?? createDefaultOptimizerProvider()
 
   return {
     async createOptimizedGeneration(userId: string, input: OptimizeGenerationInput): Promise<Generation> {
@@ -91,7 +94,7 @@ export function createRepositoryBackedHudforgeService(repository: HudforgeReposi
       const { prompt, ui_type, style, user_settings } = validatePromptInput(input)
       const now = new Date().toISOString()
       const id = `gen_${stableId(`${userId}:${prompt}:${ui_type}:${style}:${now}`).slice(0, 12)}`
-      const optimized_spec = buildOptimizedSpec(id, prompt, ui_type, style, user_settings)
+      const optimized_spec = await optimizerProvider({ generation_id: id, prompt, ui_type, style, user_settings })
       const generation: Generation = { id, user_id: userId, title: buildTitle(prompt, ui_type), prompt, ui_type, style, status: 'optimized', created_at: now, updated_at: now, optimized_spec }
       await repository.upsertGeneration(generation)
       await repository.recordUsageEvent(userId, { name: 'generation_started', generation_id: id })
@@ -222,6 +225,198 @@ async function generateSingleFalAsset(falKey: string, spec: OptimizedGenerationS
 
 async function waitForFalResult(responseUrl: string, falKey: string, name: string) { for (let attempt = 0; attempt < 90; attempt += 1) { if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 2000)); const response = await fetch(responseUrl, { headers: { Authorization: `Key ${falKey}` } }); if (response.ok) return (await response.json()) as { images?: Array<{ url?: string }>; image?: { url?: string }; data?: { images?: Array<{ url?: string }> } }; const body = await response.text(); if (response.status === 400 && body.toLowerCase().includes('still in progress')) continue; throw new HudforgeServiceError(`fal.ai polling failed for ${name} with status ${response.status}`, 502, 'fal_poll_failed') } throw new HudforgeServiceError(`Timed out waiting for fal.ai asset generation for ${name}`, 504, 'fal_timeout') }
 function buildFalAssetPrompt(spec: OptimizedGenerationSpec, name: string, imagePrompt: ImagePromptSpec) { return [`Roblox game UI production asset: ${name}.`, imagePrompt.prompt, `UI type: ${spec.ui_type}. Style: ${spec.style}.`, 'Clean game-world visual language, strong readable silhouette, no watermark, no tiny unreadable text, no random characters, no photorealism.', 'Designed as part of one coherent UI kit: main frame, button style, currency icon, panel/background, close/settings button.', imagePrompt.transparent ? 'Transparent PNG-style asset, isolated UI element, clean alpha edges.' : 'Backdrop/panel texture suitable for a browser preview and Roblox ScreenGui composition.'].join(' ') }
+
+
+export function createDefaultOptimizerProvider(): OptimizerProvider {
+  const openRouterKey = process.env.OPENROUTER_API_KEY
+  if (openRouterKey) return createOpenRouterGeminiOptimizer({ apiKey: openRouterKey })
+  return async ({ generation_id, prompt, ui_type, style, user_settings }) => buildOptimizedSpec(generation_id, prompt, ui_type, style, user_settings)
+}
+
+export function createOpenRouterGeminiOptimizer(options: { apiKey?: string; model?: string; fetchImpl?: typeof fetch } = {}): OptimizerProvider {
+  const apiKey = options.apiKey ?? process.env.OPENROUTER_API_KEY
+  const model = options.model ?? process.env.OPENROUTER_MODEL ?? 'google/gemini-2.5-flash'
+  const fetchImpl = options.fetchImpl ?? fetch
+  if (!apiKey) throw new HudforgeServiceError('OPENROUTER_API_KEY is missing. Real Gemini optimizer is not configured.', 503, 'openrouter_not_configured')
+
+  return async (input) => {
+    const response = await fetchImpl('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.hudforge.app',
+        'X-Title': 'HUDForge',
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.25,
+        max_tokens: 2400,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: buildOptimizerSystemPrompt() },
+          { role: 'user', content: buildOptimizerUserPrompt(input) },
+        ],
+      }),
+    })
+
+    if (!response.ok) {
+      const body = await safeResponseText(response)
+      throw new HudforgeServiceError(`OpenRouter optimizer failed with status ${response.status}: ${body.slice(0, 220)}`, 502, 'openrouter_request_failed')
+    }
+
+    const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }>; error?: { message?: string } }
+    const content = payload.choices?.[0]?.message?.content
+    if (!content) throw new HudforgeServiceError(payload.error?.message ?? 'OpenRouter returned no optimizer content', 502, 'openrouter_empty_response')
+    return parseOpenRouterOptimizedSpec(content, {
+      generation_id: input.generation_id,
+      prompt: input.prompt,
+      ui_type: input.ui_type,
+      style: input.style,
+      mobile_first: input.user_settings.mobile_first,
+    })
+  }
+}
+
+export function parseOpenRouterOptimizedSpec(text: string, context: { generation_id: string; prompt: string; ui_type: UiType; style: GenerationStyle; mobile_first: boolean }): OptimizedGenerationSpec {
+  const parsed = unwrapOptimizerPayload(parseJsonObjectFromText(text))
+  const fallbackSettings = normalizeSettingsInput({ mobile_first: context.mobile_first, default_ui_type: context.ui_type, default_style: context.style })
+  const fallback = buildOptimizedSpec(context.generation_id, context.prompt, context.ui_type, context.style, fallbackSettings)
+  const imagePromptsValue = parsed.image_prompts ?? parsed.imagePrompts ?? (parsed.assets as Record<string, unknown> | undefined)?.image_prompts ?? (parsed.assets as Record<string, unknown> | undefined)?.imagePrompts
+  const layoutSpecValue = (parsed.layout_spec ?? parsed.layoutSpec) as { nodes?: unknown; canvas?: unknown } | undefined
+  const imagePrompts = normalizeProviderImagePrompts(imagePromptsValue, fallback)
+  const layoutNodes = normalizeProviderLayoutNodes(layoutSpecValue?.nodes, fallback.layout_spec.nodes)
+  const canvas = normalizeProviderCanvas(layoutSpecValue?.canvas, fallback.layout_spec.canvas)
+  const rootInstances = flattenNodesForLua(layoutNodes, 'ScreenGui')
+  return {
+    generation_id: context.generation_id,
+    ui_type: context.ui_type,
+    style: context.style,
+    intent_summary: typeof parsed.intent_summary === 'string' && parsed.intent_summary.trim().length > 20 ? parsed.intent_summary.trim().slice(0, 240) : fallback.intent_summary,
+    asset_list: ['main_frame', 'primary_button', 'secondary_button', 'currency_icon', 'background_panel'],
+    layout_spec: { canvas, nodes: layoutNodes },
+    image_prompts: imagePrompts,
+    lua_spec: { screen_gui_name: 'HUDForgeGeneratedUI', root_instances: rootInstances },
+    constraints: { mobile_friendly: true, roblox_native: true, transparent_assets_preferred: true, deterministic_export_required: true },
+  }
+}
+
+function parseJsonObjectFromText(text: string): Record<string, unknown> {
+  const trimmed = text.trim()
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)?.[1]
+  const candidate = fenced ?? trimmed.slice(trimmed.indexOf('{'), trimmed.lastIndexOf('}') + 1)
+  try {
+    const parsed = JSON.parse(candidate)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('not an object')
+    return parsed as Record<string, unknown>
+  } catch (error) {
+    throw new HudforgeServiceError(`OpenRouter optimizer returned invalid JSON: ${error instanceof Error ? error.message : 'parse failed'}`, 502, 'openrouter_invalid_json')
+  }
+}
+
+
+function unwrapOptimizerPayload(parsed: Record<string, unknown>): Record<string, unknown> {
+  for (const key of ['spec', 'ui_spec', 'uiSpec', 'hudforge_spec', 'hudforgeSpec']) {
+    const value = parsed[key]
+    if (value && typeof value === 'object' && !Array.isArray(value)) return value as Record<string, unknown>
+  }
+  return parsed
+}
+
+function normalizeProviderImagePrompts(value: unknown, fallback: OptimizedGenerationSpec): OptimizedGenerationSpec['image_prompts'] {
+  if (!value || typeof value !== 'object') throw new HudforgeServiceError('OpenRouter optimizer JSON is missing image_prompts object', 502, 'openrouter_invalid_schema')
+  const source = Array.isArray(value) ? Object.fromEntries(value.map((row) => [normalizeAssetPromptKey(typeof row?.name === 'string' ? row.name : typeof row?.id === 'string' ? row.id : typeof row?.node_id === 'string' ? row.node_id : typeof row?.asset_ref === 'string' ? row.asset_ref : ''), row]).filter(([key]) => key)) : Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, row]) => [normalizeAssetPromptKey(key), row]))
+  const required = ['main_frame', 'primary_button', 'secondary_button', 'currency_icon', 'background_panel'] as const
+  const normalized = {} as OptimizedGenerationSpec['image_prompts']
+  for (const key of required) {
+    const row = source[key] ?? source[normalizeAssetPromptKey(key)]
+    if (!row || typeof row !== 'object' || Array.isArray(row)) throw new HudforgeServiceError(`OpenRouter optimizer JSON is missing image prompt: ${key}`, 502, 'openrouter_invalid_schema')
+    const prompt = (row as Record<string, unknown>).prompt
+    if (typeof prompt !== 'string' || prompt.trim().length < 16) throw new HudforgeServiceError(`OpenRouter optimizer image prompt is too weak: ${key}`, 502, 'openrouter_invalid_schema')
+    const fallbackPrompt = fallback.image_prompts[key]
+    const intendedUse = (row as Record<string, unknown>).intended_use
+    normalized[key] = {
+      prompt: prompt.trim().slice(0, 700),
+      negative_prompt: typeof (row as Record<string, unknown>).negative_prompt === 'string' ? ((row as Record<string, unknown>).negative_prompt as string).trim().slice(0, 240) : fallbackPrompt.negative_prompt,
+      transparent: typeof (row as Record<string, unknown>).transparent === 'boolean' ? ((row as Record<string, unknown>).transparent as boolean) : fallbackPrompt.transparent,
+      intended_use: intendedUse === 'panel' || intendedUse === 'button' || intendedUse === 'icon' || intendedUse === 'background' ? intendedUse : fallbackPrompt.intended_use,
+    }
+  }
+  return normalized
+}
+
+function normalizeAssetPromptKey(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') }
+function normalizeProviderCanvas(value: unknown, fallback: LayoutSpec['canvas']): LayoutSpec['canvas'] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return fallback
+  const row = value as Record<string, unknown>
+  const target = row.target === 'desktop' ? 'desktop' : row.target === 'mobile' ? 'mobile' : fallback.target
+  return {
+    target,
+    width: typeof row.width === 'number' && row.width >= 320 && row.width <= 1920 ? Math.round(row.width) : fallback.width,
+    height: typeof row.height === 'number' && row.height >= 320 && row.height <= 1920 ? Math.round(row.height) : fallback.height,
+    safe_area: typeof row.safe_area === 'boolean' ? row.safe_area : true,
+  }
+}
+
+function normalizeProviderLayoutNodes(value: unknown, fallback: LayoutNode[]): LayoutNode[] {
+  if (!Array.isArray(value) || value.length === 0) return fallback
+  return value.slice(0, 24).map((node, index) => normalizeProviderLayoutNode(node, fallback[index] ?? fallback[0], index))
+}
+
+function normalizeProviderLayoutNode(value: unknown, fallback: LayoutNode, index: number): LayoutNode {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return fallback
+  const row = value as Record<string, unknown>
+  const type = row.type === 'Frame' || row.type === 'ImageLabel' || row.type === 'TextButton' || row.type === 'TextLabel' ? row.type : fallback.type
+  const id = sanitizeNodeId(typeof row.id === 'string' ? row.id : fallback.id || `node_${index}`)
+  const childrenValue = row.children
+  return {
+    id,
+    type,
+    name: sanitizeRobloxName(typeof row.name === 'string' ? row.name : fallback.name || id),
+    asset_ref: typeof row.asset_ref === 'string' && row.asset_ref.trim() ? row.asset_ref.trim() : null,
+    position: normalizeVector(row.position, fallback.position),
+    size: normalizeVector(row.size, fallback.size),
+    z_index: typeof row.z_index === 'number' ? Math.max(1, Math.min(20, Math.round(row.z_index))) : fallback.z_index,
+    text: typeof row.text === 'string' ? row.text.slice(0, 80) : null,
+    children: Array.isArray(childrenValue) ? childrenValue.slice(0, 16).map((child, childIndex) => normalizeProviderLayoutNode(child, fallback.children[childIndex] ?? fallback, childIndex)) : [],
+  }
+}
+
+function normalizeVector(value: unknown, fallback: LayoutVector): LayoutVector {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return fallback
+  const row = value as Record<string, unknown>
+  return {
+    x_scale: typeof row.x_scale === 'number' ? clamp(row.x_scale, -2, 2) : fallback.x_scale,
+    x_offset: typeof row.x_offset === 'number' ? Math.round(clamp(row.x_offset, -2000, 2000)) : fallback.x_offset,
+    y_scale: typeof row.y_scale === 'number' ? clamp(row.y_scale, -2, 2) : fallback.y_scale,
+    y_offset: typeof row.y_offset === 'number' ? Math.round(clamp(row.y_offset, -2000, 2000)) : fallback.y_offset,
+  }
+}
+
+function buildOptimizerSystemPrompt() {
+  return 'You are HUDForge, a Roblox UI production optimizer. Return only valid JSON. Produce a deterministic layout spec and five image prompts. No prose, no markdown unless the API forces it.'
+}
+
+function buildOptimizerUserPrompt(input: OptimizerProviderInput) {
+  return JSON.stringify({
+    task: 'Create a Roblox UI generation spec. Return JSON with intent_summary, layout_spec.canvas, layout_spec.nodes, and image_prompts for exactly main_frame, primary_button, secondary_button, currency_icon, background_panel.',
+    constraints: ['Roblox ScreenGui friendly', 'mobile safe area', 'no baked text in generated image prompts except icon-free labels', 'all final code will be generated deterministically by HUDForge'],
+    allowed_node_types: ['Frame', 'ImageLabel', 'TextButton', 'TextLabel'],
+    allowed_asset_uses: ['panel', 'button', 'icon', 'background'],
+    prompt: input.prompt,
+    ui_type: input.ui_type,
+    style: input.style,
+    mobile_first: input.user_settings.mobile_first,
+  })
+}
+
+async function safeResponseText(response: Response) {
+  try { return await response.text() } catch { return '' }
+}
+
+function sanitizeNodeId(value: string) { return value.toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 48) || 'node' }
+function sanitizeRobloxName(value: string) { return toRobloxIdentifier(value).slice(0, 64) }
+function clamp(value: number, min: number, max: number) { return Math.max(min, Math.min(max, value)) }
 
 async function ensureCredits(repository: HudforgeRepository, userId: string) { await repository.ensureInitialCredits(userId, INITIAL_FREE_CREDITS) }
 async function debitCredits(repository: HudforgeRepository, userId: string, amount: number, reason: CreditLedgerEntry['reason'], generationId?: string) { const balance = await repository.getCreditBalance(userId); if (balance < amount) throw new HudforgeServiceError(`Insufficient credits. Required ${amount}, available ${balance}.`, 402, 'insufficient_credits'); await repository.addCreditLedgerEntry(userId, -amount, reason, generationId) }

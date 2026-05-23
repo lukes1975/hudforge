@@ -22,4 +22,5 @@ Keep it simple. Avoid jargon unless it is necessary.
 - [Supabase Database](./supabase-database.md)
 - [FAL Image Generation](./fal-image-generation.md)
 - [Durable Analytics](./durable-analytics.md)
+- [OpenRouter Gemini Optimizer](./openrouter-gemini-optimizer.md)
 - [Change Log](./changelog.md)
