@@ -1,279 +1,218 @@
-// Analytics client for HUDForge £10k MRR tracking
-import { supabase } from './supabase'
+import type { GenerationStatus } from './hudforge-generation'
 
-export interface RevenueEvent {
-    subscription_id?: string
-    amount: number // in pence (£)
-    currency?: string
-    type: 'subscription_created' | 'subscription_renewed' | 'refund' | 'one_time'
-    event_time?: Date
-    metadata?: Record<string, unknown>
+export type AnalyticsSubscriptionState = 'free' | 'trial' | 'active_paid' | 'past_due' | 'canceled' | 'unknown_mock'
+
+export interface AnalyticsWaitlistRow { id: string; created_at: string }
+export interface AnalyticsProfileRow { user_id: string; created_at: string }
+export interface AnalyticsGenerationRow { id: string; user_id: string; status: GenerationStatus; created_at: string; updated_at: string; error?: string | null }
+export interface AnalyticsUsageEventRow { id: string; user_id: string; event_name: string; generation_id?: string | null; created_at: string; metadata?: Record<string, unknown> | null }
+export interface AnalyticsCreditLedgerRow { id: string; user_id: string; delta: number; balance_after: number; reason: string; generation_id?: string | null; created_at: string }
+export interface AnalyticsSubscriptionRow { id: string; user_id: string; state: AnalyticsSubscriptionState; created_at: string }
+
+export interface HudforgeAnalyticsRows {
+  waitlist: AnalyticsWaitlistRow[]
+  profiles: AnalyticsProfileRow[]
+  generations: AnalyticsGenerationRow[]
+  usageEvents: AnalyticsUsageEventRow[]
+  creditLedger: AnalyticsCreditLedgerRow[]
+  subscriptions: AnalyticsSubscriptionRow[]
 }
 
-export interface MrrSnapshot {
-    snapshot_date: Date
-    total_mrr: number
-    new_mrr: number
-    expansion_mrr: number
-    churned_mrr: number
-    net_new_mrr: number
-    active_customers: number
-    new_customers: number
-    churned_customers: number
+export interface AnalyticsFunnelStage {
+  stage: 'waitlist' | 'signed_up' | 'generated' | 'exported' | 'paid'
+  count: number
+  conversion_rate: number | null
 }
 
-export interface FunnelStage {
-    stage: 'visitor' | 'waitlist' | 'activated' | 'paid'
-    count: number
-    date: Date
-    conversion_rate?: number
+export interface HudforgeAnalyticsSummary {
+  generated_at: string
+  window_days: number
+  funnel: AnalyticsFunnelStage[]
+  generation: {
+    total: number
+    optimized: number
+    assets_ready: number
+    exported: number
+    failed: number
+    export_rate: number
+    success_rate: number
+  }
+  usage: {
+    total_events: number
+    unique_active_users: number
+    by_event: Record<string, number>
+  }
+  credits: {
+    granted: number
+    spent: number
+    refunded: number
+    net_balance: number
+  }
+  revenue: {
+    active_paid_users: number
+    trial_users: number
+    past_due_users: number
+    canceled_users: number
+  }
+  health: {
+    provider_failures: number
+    blockers: string[]
+  }
 }
 
-export interface CohortRetention {
-    cohort_date: Date
-    month_offset: number
-    retained_users: number
-    total_cohort_users: number
-    retention_rate: number
+export interface HudforgeAnalyticsRepository {
+  loadRows(startDate: Date, endDate: Date): Promise<HudforgeAnalyticsRows>
 }
 
-// Revenue tracking
-export async function recordRevenueEvent(event: RevenueEvent) {
-    const { data, error } = await supabase
-        .from('revenue_events')
-        .insert({
-            ...event,
-            event_time: event.event_time || new Date(),
-            currency: event.currency || 'GBP'
-        })
-        .select()
-        .single()
-    
-    if (error) throw error
-    return data
+export function buildHudforgeAnalyticsSummary(
+  rows: HudforgeAnalyticsRows,
+  options: { now?: Date; windowDays?: number } = {}
+): HudforgeAnalyticsSummary {
+  const now = options.now ?? new Date()
+  const windowDays = options.windowDays ?? 30
+  const uniqueGeneratedUsers = unique(rows.generations.map((generation) => generation.user_id)).length
+  const uniqueExportedUsers = unique(rows.generations.filter((generation) => generation.status === 'exported').map((generation) => generation.user_id)).length
+  const activePaidUsers = unique(rows.subscriptions.filter((subscription) => subscription.state === 'active_paid').map((subscription) => subscription.user_id)).length
+  const funnel: AnalyticsFunnelStage[] = [
+    { stage: 'waitlist', count: rows.waitlist.length, conversion_rate: null },
+    { stage: 'signed_up', count: rows.profiles.length, conversion_rate: safeRate(rows.profiles.length, rows.waitlist.length) },
+    { stage: 'generated', count: uniqueGeneratedUsers, conversion_rate: safeRate(uniqueGeneratedUsers, rows.profiles.length) },
+    { stage: 'exported', count: uniqueExportedUsers, conversion_rate: safeRate(uniqueExportedUsers, uniqueGeneratedUsers) },
+    { stage: 'paid', count: activePaidUsers, conversion_rate: safeRate(activePaidUsers, uniqueExportedUsers) },
+  ]
+
+  const generationCounts = countBy(rows.generations, (generation) => generation.status)
+  const usageCounts = countBy(rows.usageEvents, (event) => event.event_name)
+  const spent = Math.abs(sum(rows.creditLedger.filter((entry) => entry.delta < 0).map((entry) => entry.delta)))
+  const refunded = sum(rows.creditLedger.filter((entry) => entry.reason.includes('refund') && entry.delta > 0).map((entry) => entry.delta))
+  const granted = sum(rows.creditLedger.filter((entry) => entry.delta > 0).map((entry) => entry.delta))
+  const providerFailures = rows.usageEvents.filter((event) => event.event_name === 'generation_failed').length + rows.generations.filter((generation) => generation.status === 'failed').length
+  const blockers = buildBlockers(rows, providerFailures)
+
+  return {
+    generated_at: now.toISOString(),
+    window_days: windowDays,
+    funnel,
+    generation: {
+      total: rows.generations.length,
+      optimized: generationCounts.optimized ?? 0,
+      assets_ready: generationCounts.assets_ready ?? 0,
+      exported: generationCounts.exported ?? 0,
+      failed: generationCounts.failed ?? 0,
+      export_rate: safeRate(generationCounts.exported ?? 0, rows.generations.length) ?? 0,
+      success_rate: safeRate(rows.generations.length - (generationCounts.failed ?? 0), rows.generations.length) ?? 0,
+    },
+    usage: {
+      total_events: rows.usageEvents.length,
+      unique_active_users: unique(rows.usageEvents.map((event) => event.user_id)).length,
+      by_event: usageCounts,
+    },
+    credits: {
+      granted,
+      spent,
+      refunded,
+      net_balance: sum(rows.creditLedger.map((entry) => entry.delta)),
+    },
+    revenue: {
+      active_paid_users: activePaidUsers,
+      trial_users: rows.subscriptions.filter((subscription) => subscription.state === 'trial').length,
+      past_due_users: rows.subscriptions.filter((subscription) => subscription.state === 'past_due').length,
+      canceled_users: rows.subscriptions.filter((subscription) => subscription.state === 'canceled').length,
+    },
+    health: {
+      provider_failures: providerFailures,
+      blockers,
+    },
+  }
 }
 
-// MRR calculations
-export async function getMrrSnapshot(date: Date = new Date()): Promise<MrrSnapshot> {
-    const { data, error } = await supabase
-        .rpc('calculate_mrr_for_date', { target_date: date.toISOString().split('T')[0] })
-        .single()
-    
-    if (error) {
-        // Fallback to manual calculation if function doesn't exist yet
-        console.warn('MRR function not available, returning mock data')
-        return {
-            snapshot_date: date,
-            total_mrr: 0,
-            new_mrr: 0,
-            expansion_mrr: 0,
-            churned_mrr: 0,
-            net_new_mrr: 0,
-            active_customers: 0,
-            new_customers: 0,
-            churned_customers: 0
-        }
-    }
-    
-    return {
-        snapshot_date: date,
-        ...(data ?? {}) as Record<string, unknown>
-    } as MrrSnapshot
+export function supabaseHudforgeAnalyticsRepository(): HudforgeAnalyticsRepository {
+  async function client() {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!url || !key) throw new Error('Supabase analytics is not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.')
+    const { createClient } = await import('@supabase/supabase-js')
+    return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+  }
+
+  return {
+    async loadRows(startDate, endDate) {
+      const supabase = await client()
+      const start = startDate.toISOString()
+      const end = endDate.toISOString()
+      const [waitlist, profiles, generations, usageEvents, creditLedger, subscriptions] = await Promise.all([
+        supabase.from('waitlist').select('id, created_at').gte('created_at', start).lte('created_at', end),
+        supabase.from('hudforge_profiles').select('user_id, created_at').gte('created_at', start).lte('created_at', end),
+        supabase.from('hudforge_generations').select('id, user_id, status, created_at, updated_at, error').gte('created_at', start).lte('created_at', end),
+        supabase.from('hudforge_usage_events').select('id, user_id, event_name, generation_id, created_at, metadata').gte('created_at', start).lte('created_at', end),
+        supabase.from('hudforge_credit_ledger').select('id, user_id, delta, balance_after, reason, generation_id, created_at').gte('created_at', start).lte('created_at', end),
+        supabase.from('hudforge_subscriptions').select('id, user_id, state, created_at').gte('created_at', start).lte('created_at', end),
+      ])
+
+      const failed = [waitlist, profiles, generations, usageEvents, creditLedger, subscriptions].find((result) => result.error)
+      if (failed?.error) throw failed.error
+
+      return {
+        waitlist: (waitlist.data ?? []) as AnalyticsWaitlistRow[],
+        profiles: (profiles.data ?? []) as AnalyticsProfileRow[],
+        generations: (generations.data ?? []) as AnalyticsGenerationRow[],
+        usageEvents: (usageEvents.data ?? []) as AnalyticsUsageEventRow[],
+        creditLedger: (creditLedger.data ?? []) as AnalyticsCreditLedgerRow[],
+        subscriptions: (subscriptions.data ?? []) as AnalyticsSubscriptionRow[],
+      }
+    },
+  }
 }
 
-export async function updateDailyMrrSnapshot() {
-    const { error } = await supabase.rpc('update_daily_mrr_snapshot')
-    if (error) {
-        console.error('Failed to update MRR snapshot:', error)
-        return false
-    }
-    return true
+export async function getHudforgeAnalyticsSummary(options: { windowDays?: number; repository?: HudforgeAnalyticsRepository; now?: Date } = {}) {
+  const now = options.now ?? new Date()
+  const windowDays = options.windowDays ?? 30
+  const startDate = new Date(now.getTime() - windowDays * 24 * 60 * 60 * 1000)
+  const rows = await (options.repository ?? supabaseHudforgeAnalyticsRepository()).loadRows(startDate, now)
+  return buildHudforgeAnalyticsSummary(rows, { now, windowDays })
 }
 
-// Funnel analytics
-export async function getFunnelStages(startDate: Date, endDate: Date): Promise<FunnelStage[]> {
-    // Visitors (from user_sessions)
-    const { data: sessions, error: sessionsError } = await supabase
-        .from('user_sessions')
-        .select('id, started_at')
-        .gte('started_at', startDate.toISOString())
-        .lte('started_at', endDate.toISOString())
-    
-    // Waitlist signups
-    const { data: waitlist, error: waitlistError } = await supabase
-        .from('waitlist')
-        .select('id, created_at')
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString())
-    
-    // Activated users (users with onboarded_at)
-    const { data: activated, error: activatedError } = await supabase
-        .from('users')
-        .select('id, onboarded_at')
-        .not('onboarded_at', 'is', null)
-        .gte('onboarded_at', startDate.toISOString())
-        .lte('onboarded_at', endDate.toISOString())
-    
-    // Paid users (active subscriptions)
-    const { data: paid, error: paidError } = await supabase
-        .from('subscriptions')
-        .select('user_id, status')
-        .eq('status', 'active')
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString())
-    
-    const errors = [sessionsError, waitlistError, activatedError, paidError].filter(e => e)
-    if (errors.length > 0) {
-        console.error('Funnel query errors:', errors)
-        // Return mock data
-        return [
-            { stage: 'visitor', count: 1000, date: startDate },
-            { stage: 'waitlist', count: 200, date: startDate, conversion_rate: 0.20 },
-            { stage: 'activated', count: 40, date: startDate, conversion_rate: 0.20 },
-            { stage: 'paid', count: 8, date: startDate, conversion_rate: 0.20 }
-        ]
-    }
-    
-    return [
-        { 
-            stage: 'visitor', 
-            count: sessions?.length || 0, 
-            date: startDate 
-        },
-        { 
-            stage: 'waitlist', 
-            count: waitlist?.length || 0, 
-            date: startDate,
-            conversion_rate: sessions?.length ? (waitlist?.length || 0) / sessions.length : 0
-        },
-        { 
-            stage: 'activated', 
-            count: activated?.length || 0, 
-            date: startDate,
-            conversion_rate: waitlist?.length ? (activated?.length || 0) / waitlist.length : 0
-        },
-        { 
-            stage: 'paid', 
-            count: paid?.length || 0, 
-            date: startDate,
-            conversion_rate: activated?.length ? (paid?.length || 0) / activated.length : 0
-        }
-    ]
+export async function recordHudforgeRevenueEvent(userId: string, event: { amount_gbp_pence: number; provider: 'lemon_squeezy'; metadata?: Record<string, unknown> }) {
+  const repository = supabaseHudforgeAnalyticsRepository()
+  const now = new Date()
+  const rows = await repository.loadRows(new Date(now.getTime() - 1), now)
+  void rows
+  return {
+    user_id: userId,
+    recorded: false,
+    reason: 'Revenue events should be written through Lemon Squeezy webhook into hudforge_subscriptions and hudforge_credit_ledger.',
+    amount_gbp_pence: event.amount_gbp_pence,
+    provider: event.provider,
+  }
 }
 
-// Retention analytics
-export async function getCohortRetention(cohortDate: Date, months: number = 6): Promise<CohortRetention[]> {
-    const { data, error } = await supabase
-        .from('cohort_retention')
-        .select('*')
-        .eq('cohort_date', cohortDate.toISOString().split('T')[0])
-        .lte('month_offset', months)
-        .order('month_offset')
-    
-    if (error || !data) {
-        console.warn('Cohort retention query failed, returning mock data')
-        const mockData: CohortRetention[] = []
-        for (let i = 0; i < months; i++) {
-            const baseRetention = 0.45 // 45% month 0
-            const retainedRate = baseRetention * Math.pow(0.85, i) // Exponential decay
-            mockData.push({
-                cohort_date: cohortDate,
-                month_offset: i,
-                retained_users: Math.round(100 * retainedRate),
-                total_cohort_users: 100,
-                retention_rate: retainedRate
-            })
-        }
-        return mockData
-    }
-    
-    return data.map(row => ({
-        cohort_date: new Date(row.cohort_date),
-        month_offset: row.month_offset,
-        retained_users: row.retained_users,
-        total_cohort_users: row.total_cohort_users,
-        retention_rate: row.retention_rate
-    }))
+function buildBlockers(rows: HudforgeAnalyticsRows, providerFailures: number) {
+  const blockers: string[] = []
+  const failedGenerations = rows.generations.filter((generation) => generation.status === 'failed').length
+  if (failedGenerations > 0) blockers.push(`${failedGenerations} failed generation${failedGenerations === 1 ? '' : 's'} need${failedGenerations === 1 ? 's' : ''} retry/error polish`)
+  if (providerFailures > failedGenerations) blockers.push('Provider failure events are being recorded; inspect FAL/OpenRouter health')
+  if (rows.waitlist.length > 0 && rows.profiles.length === 0) blockers.push('Waitlist exists but activation/signup is not converting yet')
+  if (rows.generations.length > 0 && !rows.generations.some((generation) => generation.status === 'exported')) blockers.push('Generations exist but exports are not happening yet')
+  return blockers
 }
 
-// Alert system
-export async function checkAlerts() {
-    const { data: definitions, error } = await supabase
-        .from('alert_definitions')
-        .select('*')
-        .eq('is_active', true)
-    
-    if (error) {
-        console.error('Failed to fetch alert definitions:', error)
-        return []
-    }
-    
-    const triggeredAlerts = []
-    
-    for (const def of definitions) {
-        // Calculate metric based on definition
-        let metricValue = 0
-        
-        switch (def.metric) {
-            case 'net_new_mrr':
-                const snapshot = await getMrrSnapshot(new Date())
-                metricValue = snapshot.net_new_mrr / 100 // Convert to £
-                break
-            case 'churn_rate':
-                const weeklySnapshot = await getMrrSnapshot(new Date())
-                metricValue = weeklySnapshot.churned_customers / Math.max(1, weeklySnapshot.active_customers)
-                break
-            case 'conversion_rate':
-                const funnel = await getFunnelStages(
-                    new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-                    new Date()
-                )
-                const waitlistStage = funnel.find(f => f.stage === 'waitlist')
-                const paidStage = funnel.find(f => f.stage === 'paid')
-                metricValue = waitlistStage && paidStage && waitlistStage.count > 0 
-                    ? paidStage.count / waitlistStage.count 
-                    : 0
-                break
-            case 'new_users':
-                const funnelData = await getFunnelStages(
-                    new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-                    new Date()
-                )
-                const waitlistData = funnelData.find(f => f.stage === 'waitlist')
-                metricValue = waitlistData?.count || 0
-                break
-        }
-        
-        // Evaluate condition
-        let shouldTrigger = false
-        switch (def.operator) {
-            case '>': shouldTrigger = metricValue > def.threshold; break
-            case '<': shouldTrigger = metricValue < def.threshold; break
-            case '=': shouldTrigger = Math.abs(metricValue - def.threshold) < 0.001; break
-            case '!=': shouldTrigger = Math.abs(metricValue - def.threshold) >= 0.001; break
-        }
-        
-        if (shouldTrigger) {
-            // Record trigger
-            const { data: trigger, error: triggerError } = await supabase
-                .from('alert_triggers')
-                .insert({
-                    alert_definition_id: def.id,
-                    metric_value: metricValue,
-                    threshold: def.threshold
-                })
-                .select()
-                .single()
-            
-            if (!triggerError) {
-                triggeredAlerts.push({
-                    definition: def,
-                    trigger: trigger,
-                    metric_value: metricValue
-                })
-            }
-        }
-    }
-    
-    return triggeredAlerts
+function countBy<T>(rows: T[], getKey: (row: T) => string) {
+  return rows.reduce<Record<string, number>>((counts, row) => {
+    const key = getKey(row)
+    counts[key] = (counts[key] ?? 0) + 1
+    return counts
+  }, {})
+}
+
+function safeRate(numerator: number, denominator: number) {
+  if (denominator <= 0) return null
+  return numerator / denominator
+}
+
+function unique(values: string[]) {
+  return Array.from(new Set(values))
+}
+
+function sum(values: number[]) {
+  return values.reduce((total, value) => total + value, 0)
 }

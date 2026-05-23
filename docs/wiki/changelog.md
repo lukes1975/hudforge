@@ -2,6 +2,32 @@
 
 Simple record of meaningful changes.
 
+## 2026-05-23 — Durable analytics moved to HUDForge SaaS tables
+
+Changed:
+
+- Replaced stale analytics helpers that referenced deleted legacy tables.
+- Added a durable analytics summary from `waitlist` and `hudforge_*` tables.
+- Added `/api/analytics/summary` for authenticated analytics reads.
+- Updated `/dashboard` to show 30-day funnel and generation/credit metrics.
+- Reworked the old alert panel into a product-health panel backed by the new summary.
+
+Why it matters:
+
+- The dashboard now reflects the actual SaaS loop instead of fake/legacy MRR tables.
+- Analytics now measures what matters before billing is live: waitlist, signup, generation, export, credits, failures, and paid state readiness.
+- This avoids accidentally rebuilding on deleted/stale database tables.
+
+Verification:
+
+- Added tests for analytics summary math and legacy-table avoidance.
+- Full gate passed: lint, type-check, tests, build.
+- Local authenticated smoke passed for `/dashboard` and `/api/analytics/summary` using E2E auth bypass.
+
+Follow-up:
+
+- When Lemon Squeezy is implemented, write subscription/payment events into `hudforge_subscriptions` and `hudforge_credit_ledger` so paid conversion metrics become real.
+
 ## 2026-05-23 — Removed legacy Supabase tables
 
 Changed:

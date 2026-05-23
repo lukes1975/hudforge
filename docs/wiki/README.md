@@ -21,4 +21,5 @@ Keep it simple. Avoid jargon unless it is necessary.
 - [Generation Pipeline](./generation-pipeline.md)
 - [Supabase Database](./supabase-database.md)
 - [FAL Image Generation](./fal-image-generation.md)
+- [Durable Analytics](./durable-analytics.md)
 - [Change Log](./changelog.md)
