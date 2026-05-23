@@ -2,6 +2,45 @@
 
 Simple record of meaningful changes.
 
+## 2026-05-23 — Removed legacy Supabase tables
+
+Changed:
+
+- Deleted old generic analytics/billing tables from Supabase.
+- Kept only `waitlist` and the six `hudforge_*` SaaS tables.
+- Deleted old analytics functions that depended on the removed tables.
+
+Deleted tables:
+
+- `alert_definitions`
+- `alert_triggers`
+- `churn_events`
+- `cohort_retention`
+- `feature_events`
+- `mrr_snapshots`
+- `plans`
+- `revenue_events`
+- `subscriptions`
+- `user_cohorts`
+- `user_sessions`
+- `users`
+
+Why it matters:
+
+- The database is simpler and less confusing.
+- Future billing/analytics work should use the `hudforge_*` tables instead of old generic tables.
+- This reduces the chance of wiring new SaaS code to stale schemas.
+
+Verification:
+
+- Kept tables returned `200` through Supabase REST.
+- Deleted tables returned `404` through Supabase REST.
+- Schema dump showed only `waitlist`, six `hudforge_*` tables, and `hudforge_touch_updated_at` function remain.
+
+Follow-up:
+
+- Replace/remove stale code paths that import the old analytics helpers before using dashboard analytics in production.
+
 ## 2026-05-23 — Supabase generation foundation live
 
 Changed:

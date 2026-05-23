@@ -7,16 +7,20 @@ Supabase stores the durable SaaS data for HUDForge.
 - Project name: `hudforge-waitlist-live`
 - Project ref: `dauhewahzjrvrszemclj`
 
-## Tables created for the generation foundation
+## Tables kept in the live database
 
-The live database now has these HUDForge tables:
+The live database is now intentionally small. It keeps only:
 
+- `waitlist`
 - `hudforge_profiles`
 - `hudforge_generations`
 - `hudforge_user_settings`
 - `hudforge_usage_events`
 - `hudforge_credit_ledger`
 - `hudforge_subscriptions`
+
+Old generic analytics/billing tables were removed because HUDForge now uses the `hudforge_*` SaaS model.
+
 
 ## What each table is for
 
