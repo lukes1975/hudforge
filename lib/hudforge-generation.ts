@@ -208,7 +208,7 @@ export async function generateFalAssetsForSpec(spec: OptimizedGenerationSpec): P
 }
 
 async function generateSingleFalAsset(falKey: string, spec: OptimizedGenerationSpec, name: string, imagePrompt: ImagePromptSpec): Promise<GeneratedAsset> {
-  const model = process.env.FAL_MODEL || 'fal-ai/flux/dev'
+  const model = process.env.FAL_MODEL || process.env.FAL_IMAGE_MODEL || 'fal-ai/flux/dev'
   const prompt = buildFalAssetPrompt(spec, name, imagePrompt)
   const submitResponse = await fetch(`https://queue.fal.run/${model}`, { method: 'POST', headers: { Authorization: `Key ${falKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, negative_prompt: imagePrompt.negative_prompt, image_size: imagePrompt.intended_use === 'background' ? 'landscape_16_9' : 'square_hd', num_images: 1, enable_safety_checker: true }) })
   if (!submitResponse.ok) throw new HudforgeServiceError(`fal.ai request failed for ${name} with status ${submitResponse.status}`, 502, 'fal_request_failed')
