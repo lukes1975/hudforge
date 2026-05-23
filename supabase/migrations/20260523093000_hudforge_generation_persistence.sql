@@ -1,7 +1,7 @@
 -- HUDForge authenticated generation persistence + credit ledger
 -- Created: 2026-05-23
 
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE IF NOT EXISTS hudforge_profiles (
     user_id TEXT PRIMARY KEY,
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS hudforge_user_settings (
 );
 
 CREATE TABLE IF NOT EXISTS hudforge_usage_events (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES hudforge_profiles(user_id) ON DELETE CASCADE,
     generation_id TEXT REFERENCES hudforge_generations(id) ON DELETE SET NULL,
     event_name TEXT NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS hudforge_usage_events (
 );
 
 CREATE TABLE IF NOT EXISTS hudforge_credit_ledger (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES hudforge_profiles(user_id) ON DELETE CASCADE,
     generation_id TEXT REFERENCES hudforge_generations(id) ON DELETE SET NULL,
     delta INTEGER NOT NULL,
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS hudforge_credit_ledger (
 );
 
 CREATE TABLE IF NOT EXISTS hudforge_subscriptions (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES hudforge_profiles(user_id) ON DELETE CASCADE,
     state TEXT NOT NULL CHECK (state IN ('free', 'trial', 'active_paid', 'past_due', 'canceled', 'unknown_mock')) DEFAULT 'free',
     lemon_squeezy_customer_id TEXT,

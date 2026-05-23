@@ -12,7 +12,7 @@
 
 begin;
 
-create extension if not exists "uuid-ossp";
+create extension if not exists "pgcrypto";
 
 create table if not exists public.hudforge_profiles (
     user_id text primary key,
@@ -47,7 +47,7 @@ create table if not exists public.hudforge_user_settings (
 );
 
 create table if not exists public.hudforge_usage_events (
-    id uuid default uuid_generate_v4() primary key,
+    id uuid default gen_random_uuid() primary key,
     user_id text not null references public.hudforge_profiles(user_id) on delete cascade,
     generation_id text references public.hudforge_generations(id) on delete set null,
     event_name text not null,
@@ -56,7 +56,7 @@ create table if not exists public.hudforge_usage_events (
 );
 
 create table if not exists public.hudforge_credit_ledger (
-    id uuid default uuid_generate_v4() primary key,
+    id uuid default gen_random_uuid() primary key,
     user_id text not null references public.hudforge_profiles(user_id) on delete cascade,
     generation_id text references public.hudforge_generations(id) on delete set null,
     delta integer not null,
@@ -67,7 +67,7 @@ create table if not exists public.hudforge_credit_ledger (
 );
 
 create table if not exists public.hudforge_subscriptions (
-    id uuid default uuid_generate_v4() primary key,
+    id uuid default gen_random_uuid() primary key,
     user_id text not null references public.hudforge_profiles(user_id) on delete cascade,
     state text not null check (state in ('free', 'trial', 'active_paid', 'past_due', 'canceled', 'unknown_mock')) default 'free',
     lemon_squeezy_customer_id text,
