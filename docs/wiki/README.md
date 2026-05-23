@@ -25,4 +25,5 @@ Keep it simple. Avoid jargon unless it is necessary.
 - [OpenRouter Gemini Optimizer](./openrouter-gemini-optimizer.md)
 - [ZIP Export](./zip-export.md)
 - [Cost Controls](./cost-controls.md)
+- [Lemon Squeezy Billing](./lemon-squeezy-billing.md)
 - [Change Log](./changelog.md)

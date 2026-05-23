@@ -58,7 +58,8 @@ Prompt/spec generation still has deterministic local structure while OpenRouter/
 - `OPENROUTER_API_KEY` + `OPENROUTER_MODEL=google/gemini-2.5-flash` will enable the real prompt optimizer path next.
 - `GEMINI_API_KEY` can also enable direct Gemini optimizer work.
 - `FAL_KEY` is required for `/api/generate/assets`; missing keys return a visible `fal_not_configured` error.
-- Lemon Squeezy keys can later enable checkout/status.
+- Lemon Squeezy checkout route creates paid checkout sessions when env vars are configured.
+- Lemon Squeezy webhook route verifies HMAC signatures, persists paid subscription state, and grants plan credits idempotently.
 
 Unit tests use an injected in-memory repository and fake FAL provider. Production/default route execution uses Supabase when `SUPABASE_SERVICE_ROLE_KEY` is present.
 

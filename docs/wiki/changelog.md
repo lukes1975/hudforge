@@ -2,6 +2,32 @@
 
 Simple record of meaningful changes.
 
+## 2026-05-23 — Lemon Squeezy checkout and webhook credit grants added
+
+Changed:
+
+- Added authenticated checkout creation at `POST /api/billing/checkout`.
+- Added signed Lemon Squeezy webhook processing at `POST /api/billing/webhook`.
+- Added Starter and Pro paid plan definitions with monthly credit grants.
+- Added idempotent credit grants using credit ledger webhook metadata.
+- Added subscription persistence through the repository layer.
+- Wired `/billing` upgrade buttons to checkout redirects when Lemon Squeezy env is configured.
+
+Why it matters:
+
+- HUDForge now has a real paid conversion path instead of a static billing placeholder.
+- Webhook credit grants make paid plans operational without manual credit edits.
+- Duplicate webhook delivery cannot double-grant credits.
+
+Verification:
+
+- Added Lemon Squeezy tests for checkout payloads, HMAC verification, webhook idempotency, credit grants, and paid billing status.
+- Targeted billing/credit tests passed.
+
+Follow-up:
+
+- Configure Lemon Squeezy env vars in Vercel and create the matching products/variants.
+
 ## 2026-05-23 — Cost tracking and rate limits added
 
 Changed:

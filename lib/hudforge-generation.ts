@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from 'node:crypto'
 import { analyzeRobloxPrompt } from './prompts'
 
 export const generationStatuses = [
@@ -43,9 +44,11 @@ export interface ExportPackageFile { path: 'manifest.json' | 'layout.json' | 'co
 export interface ExportPackageManifest { generation_id: string; format: 'zip' | 'json_payload'; files: ExportPackageFile[] }
 export interface ExportResponse { generation_id: string; status: 'exported'; package: ExportPackageManifest; download_url: string | null; limitations: string[] }
 export interface ExportPackagePayload extends ExportResponse { filename: string; files: Required<ExportPackageFile>[]; zip_base64?: string; byte_size?: number }
-export interface BillingPlan { id: 'free' | 'starter' | 'pro'; name: string; price_gbp_monthly: number; credits: number; cta: string }
+export type BillingPlanId = 'free' | 'starter' | 'pro'
+export interface BillingPlan { id: BillingPlanId; name: string; price_gbp_monthly: number; credits: number; cta: string }
 export type BillingState = 'free' | 'trial' | 'active_paid' | 'past_due' | 'canceled' | 'unknown_mock'
 export interface BillingStatus { state: BillingState; current_plan: BillingPlan; credits_included: number; credits_used: number; credits_remaining: number; checkout_ready: boolean; customer_portal_ready: boolean; provider: 'lemon_squeezy' | 'mock' }
+export interface HudforgeSubscription { id: string; user_id: string; state: BillingState; lemon_squeezy_customer_id?: string | null; lemon_squeezy_subscription_id?: string | null; lemon_squeezy_variant_id?: string | null; plan_id: BillingPlanId; current_period_start?: string | null; current_period_end?: string | null; cancel_at_period_end: boolean; metadata?: Record<string, unknown>; created_at: string; updated_at: string }
 export type UsageEventName = 'generation_started' | 'prompt_optimized' | 'assets_generated' | 'preview_loaded' | 'export_clicked' | 'generation_failed' | 'settings_updated' | 'credit_debited' | 'credit_refunded' | 'generation_rate_limited'
 export interface UsageEvent { name: UsageEventName; generation_id?: string; generationId?: string; metadata?: Record<string, string | number | boolean> }
 export interface UsageEventRecord extends UsageEvent { user_id: string; created_at: string }
@@ -67,7 +70,12 @@ const DEFAULT_RATE_LIMITS: RateLimitPolicy = { optimizePerHour: 12, assetBundles
 export interface RateLimitPolicy { optimizePerHour: number; assetBundlesPerHour: number }
 
 const defaultSettings: UserSettings = { default_export_format: 'zip', mobile_first: true, default_ui_type: 'shop_ui', default_style: 'neon', save_history: true }
-const freePlan: BillingPlan = { id: 'free', name: 'Free', price_gbp_monthly: 0, credits: INITIAL_FREE_CREDITS, cta: 'Current plan' }
+const billingPlans: Record<BillingPlanId, BillingPlan> = {
+  free: { id: 'free', name: 'Free', price_gbp_monthly: 0, credits: INITIAL_FREE_CREDITS, cta: 'Current plan' },
+  starter: { id: 'starter', name: 'Starter', price_gbp_monthly: 10, credits: 150, cta: 'Current plan' },
+  pro: { id: 'pro', name: 'Pro', price_gbp_monthly: 30, credits: 600, cta: 'Current plan' },
+}
+const freePlan = billingPlans.free
 
 type FalAssetProvider = (spec: OptimizedGenerationSpec) => Promise<AssetBundle>
 export interface OptimizerProviderInput { generation_id: string; prompt: string; ui_type: UiType; style: GenerationStyle; user_settings: UserSettings }
@@ -89,6 +97,8 @@ export interface HudforgeRepository {
   addCreditLedgerEntry(userId: string, delta: number, reason: CreditLedgerEntry['reason'], generationId?: string, metadata?: Record<string, unknown>): Promise<CreditLedgerEntry>
   listCreditLedger(userId: string): Promise<CreditLedgerEntry[]>
   listUsageEvents(userId: string): Promise<UsageEventRecord[]>
+  upsertSubscription(subscription: HudforgeSubscription): Promise<HudforgeSubscription>
+  listSubscriptions(userId: string): Promise<HudforgeSubscription[]>
 }
 
 export function createRepositoryBackedHudforgeService(repository: HudforgeRepository, deps: { assetProvider?: FalAssetProvider; optimizerProvider?: OptimizerProvider; rateLimits?: Partial<RateLimitPolicy> } = {}) {
@@ -154,6 +164,7 @@ export function memoryHudforgeRepository(options: { initialCredits?: number } = 
   const settingsByUser = new Map<string, UserSettings>()
   const usageEvents: UsageEventRecord[] = []
   const ledger: CreditLedgerEntry[] = []
+  const subscriptions = new Map<string, HudforgeSubscription>()
   const initialCredits = options.initialCredits ?? INITIAL_FREE_CREDITS
   return {
     async upsertGeneration(generation) { generations.set(generation.id, generation); return generation },
@@ -167,6 +178,8 @@ export function memoryHudforgeRepository(options: { initialCredits?: number } = 
     async addCreditLedgerEntry(userId, delta, reason, generationId, metadata) { const balanceBefore = ledger.filter((entry) => entry.user_id === userId).reduce((total, entry) => total + entry.delta, 0); const entry: CreditLedgerEntry = { id: `cle_${stableId(`${userId}:${reason}:${Date.now()}:${Math.random()}`).slice(0, 12)}`, user_id: userId, delta, balance_after: balanceBefore + delta, reason, generation_id: generationId ?? null, metadata, created_at: new Date().toISOString() }; ledger.push(entry); return entry },
     async listCreditLedger(userId) { await this.ensureInitialCredits(userId, initialCredits); return ledger.filter((entry) => entry.user_id === userId).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at)) },
     async listUsageEvents(userId) { return usageEvents.filter((event) => event.user_id === userId).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at)) },
+    async upsertSubscription(subscription) { subscriptions.set(subscription.id, subscription); return subscription },
+    async listSubscriptions(userId) { return Array.from(subscriptions.values()).filter((subscription) => subscription.user_id === userId).sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at)) },
   }
 }
 
@@ -194,6 +207,8 @@ export function supabaseHudforgeRepository(): HudforgeRepository {
     async addCreditLedgerEntry(userId, delta, reason, generationId, metadata) { const supabase = await client(); await ensureProfile(supabase, userId); const { data: rows, error: balanceError } = await supabase.from('hudforge_credit_ledger').select('delta').eq('user_id', userId); if (balanceError) throw dbError(balanceError, 'Failed to load credit balance'); const balanceAfter = (rows ?? []).reduce((total, row: { delta: number }) => total + row.delta, 0) + delta; const row = { user_id: userId, delta, balance_after: balanceAfter, reason, generation_id: generationId ?? null, metadata: metadata ?? {} }; const { data, error } = await supabase.from('hudforge_credit_ledger').insert(row).select('*').single(); if (error) throw dbError(error, 'Failed to write credit ledger'); return data as CreditLedgerEntry },
     async listCreditLedger(userId) { await this.ensureInitialCredits(userId, INITIAL_FREE_CREDITS); const supabase = await client(); const { data, error } = await supabase.from('hudforge_credit_ledger').select('*').eq('user_id', userId).order('created_at', { ascending: true }); if (error) throw dbError(error, 'Failed to list credit ledger'); return (data ?? []) as CreditLedgerEntry[] },
     async listUsageEvents(userId) { const supabase = await client(); const { data, error } = await supabase.from('hudforge_usage_events').select('user_id,event_name,generation_id,metadata,created_at').eq('user_id', userId).order('created_at', { ascending: true }); if (error) throw dbError(error, 'Failed to list usage events'); return (data ?? []).map((row: { user_id: string; event_name: UsageEventName; generation_id?: string | null; metadata?: Record<string, string | number | boolean>; created_at: string }) => ({ user_id: row.user_id, name: row.event_name, generation_id: row.generation_id ?? undefined, metadata: row.metadata ?? {}, created_at: row.created_at })) },
+    async upsertSubscription(subscription) { const supabase = await client(); await ensureProfile(supabase, subscription.user_id); const existing = subscription.lemon_squeezy_subscription_id ? await supabase.from('hudforge_subscriptions').select('id').eq('lemon_squeezy_subscription_id', subscription.lemon_squeezy_subscription_id).maybeSingle() : { data: null, error: null }; if (existing.error) throw dbError(existing.error, 'Failed to inspect subscription'); const row = toSubscriptionRow(subscription); const query = existing.data?.id ? supabase.from('hudforge_subscriptions').update(row).eq('id', existing.data.id).select('*').single() : supabase.from('hudforge_subscriptions').insert(row).select('*').single(); const { data, error } = await query; if (error) throw dbError(error, 'Failed to persist subscription'); return fromSubscriptionRow(data) },
+    async listSubscriptions(userId) { const supabase = await client(); const { data, error } = await supabase.from('hudforge_subscriptions').select('*').eq('user_id', userId).order('updated_at', { ascending: false }); if (error) throw dbError(error, 'Failed to list subscriptions'); return (data ?? []).map(fromSubscriptionRow) },
   }
 }
 
@@ -452,7 +467,82 @@ function assetCostMetadata(): Record<string, string | number | boolean> { return
 
 async function requireGenerationFromRepo(repository: HudforgeRepository, userId: string, generationId: string) { const generation = await repository.getGeneration(userId, generationId); if (!generation) throw new HudforgeServiceError('Generation not found', 404, 'generation_not_found'); return generation }
 async function updateGeneration(repository: HudforgeRepository, generation: Generation, updates: Partial<Generation>) { const updated = { ...generation, ...updates, updated_at: new Date().toISOString() }; return repository.upsertGeneration(updated) }
-async function getBillingStatusFromRepository(repository: HudforgeRepository, userId: string): Promise<BillingStatus> { const balance = await repository.getCreditBalance(userId); const ledger = await repository.listCreditLedger(userId); const credits_used = Math.abs(ledger.filter((entry) => entry.delta < 0).reduce((total, entry) => total + entry.delta, 0)); const checkout_ready = Boolean(process.env.LEMON_SQUEEZY_API_KEY && process.env.LEMON_SQUEEZY_STORE_ID); return { state: checkout_ready ? 'free' : 'unknown_mock', current_plan: freePlan, credits_included: freePlan.credits, credits_used, credits_remaining: balance, checkout_ready, customer_portal_ready: checkout_ready, provider: checkout_ready ? 'lemon_squeezy' : 'mock' } }
+async function getBillingStatusFromRepository(repository: HudforgeRepository, userId: string): Promise<BillingStatus> {
+  const balance = await repository.getCreditBalance(userId)
+  const ledger = await repository.listCreditLedger(userId)
+  const subscriptions = await repository.listSubscriptions(userId)
+  const activeSubscription = subscriptions.find((subscription) => subscription.state === 'active_paid' || subscription.state === 'trial')
+  const current_plan = activeSubscription ? billingPlans[activeSubscription.plan_id] : freePlan
+  const credits_used = Math.abs(ledger.filter((entry) => entry.delta < 0).reduce((total, entry) => total + entry.delta, 0))
+  const checkout_ready = isLemonSqueezyConfigured()
+  return { state: activeSubscription?.state ?? (checkout_ready ? 'free' : 'unknown_mock'), current_plan, credits_included: current_plan.credits, credits_used, credits_remaining: balance, checkout_ready, customer_portal_ready: checkout_ready, provider: checkout_ready ? 'lemon_squeezy' : 'mock' }
+}
+
+export interface LemonSqueezyCheckoutOptions { apiKey?: string; storeId?: string; variantIds?: Partial<Record<Exclude<BillingPlanId, 'free'>, string>>; siteUrl?: string; fetchImpl?: typeof fetch }
+export async function createLemonSqueezyCheckout(userId: string, planId: BillingPlanId, options: LemonSqueezyCheckoutOptions = {}) {
+  if (planId === 'free') throw new HudforgeServiceError('Free plan does not require checkout.', 400, 'checkout_not_required')
+  const apiKey = options.apiKey ?? process.env.LEMON_SQUEEZY_API_KEY
+  const storeId = options.storeId ?? process.env.LEMON_SQUEEZY_STORE_ID
+  const variantIds = options.variantIds ?? { starter: process.env.LEMON_SQUEEZY_STARTER_VARIANT_ID, pro: process.env.LEMON_SQUEEZY_PRO_VARIANT_ID }
+  const variantId = variantIds[planId]
+  if (!apiKey || !storeId || !variantId) throw new HudforgeServiceError('Lemon Squeezy checkout is not configured.', 503, 'lemon_squeezy_not_configured', { plan_id: planId })
+  const siteUrl = (options.siteUrl ?? process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.hudforge.app').replace(/\/$/, '')
+  const fetchImpl = options.fetchImpl ?? fetch
+  const response = await fetchImpl('https://api.lemonsqueezy.com/v1/checkouts', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/vnd.api+json', 'Content-Type': 'application/vnd.api+json' },
+    body: JSON.stringify({
+      data: {
+        type: 'checkouts',
+        attributes: {
+          checkout_data: { custom: { user_id: userId, plan_id: planId } },
+          product_options: { redirect_url: `${siteUrl}/billing?checkout=success` },
+        },
+        relationships: { store: { data: { type: 'stores', id: storeId } }, variant: { data: { type: 'variants', id: variantId } } },
+      },
+    }),
+  })
+  if (!response.ok) throw new HudforgeServiceError(`Lemon Squeezy checkout failed with status ${response.status}: ${(await safeResponseText(response)).slice(0, 220)}`, 502, 'lemon_squeezy_checkout_failed')
+  const payload = (await response.json()) as { data?: { attributes?: { url?: string } } }
+  const checkout_url = payload.data?.attributes?.url
+  if (!checkout_url) throw new HudforgeServiceError('Lemon Squeezy did not return a checkout URL.', 502, 'lemon_squeezy_checkout_missing_url')
+  return { checkout_url, plan_id: planId }
+}
+export async function verifyLemonSqueezySignature(body: string, signature: string | null, secret: string) {
+  if (!secret) throw new HudforgeServiceError('Lemon Squeezy webhook secret is not configured.', 503, 'lemon_squeezy_webhook_not_configured')
+  if (!signature) throw new HudforgeServiceError('Missing Lemon Squeezy webhook signature.', 401, 'missing_webhook_signature')
+  const expected = createHmac('sha256', secret).update(body).digest('hex')
+  const expectedBytes = Buffer.from(expected, 'hex')
+  const actualBytes = Buffer.from(signature, 'hex')
+  if (expectedBytes.length !== actualBytes.length || !timingSafeEqual(expectedBytes, actualBytes)) throw new HudforgeServiceError('Invalid Lemon Squeezy webhook signature.', 401, 'invalid_webhook_signature')
+  return true
+}
+export async function handleLemonSqueezyWebhook(repository: HudforgeRepository, body: string, signature: string | null, secret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET ?? '') {
+  await verifyLemonSqueezySignature(body, signature, secret)
+  const payload = JSON.parse(body) as { meta?: { event_name?: string; custom_data?: Record<string, unknown> }; data?: { id?: string; attributes?: Record<string, unknown> } }
+  const eventName = typeof payload.meta?.event_name === 'string' ? payload.meta.event_name : 'unknown'
+  const custom = payload.meta?.custom_data ?? (payload.data?.attributes?.custom_data as Record<string, unknown> | undefined) ?? {}
+  const userId = typeof custom.user_id === 'string' ? custom.user_id : ''
+  const planId = normalizeBillingPlanId(typeof custom.plan_id === 'string' ? custom.plan_id : 'starter')
+  if (!userId) throw new HudforgeServiceError('Lemon Squeezy webhook is missing custom user_id.', 400, 'webhook_user_missing')
+  const eventId = `${payload.data?.id ?? stableId(body)}:${eventName}`
+  const ledger = await repository.listCreditLedger(userId)
+  if (ledger.some((entry) => entry.metadata?.lemon_squeezy_event_id === eventId)) return { processed: false, duplicate: true, user_id: userId, plan_id: planId, credits_granted: 0 }
+  const attrs = payload.data?.attributes ?? {}
+  const now = new Date().toISOString()
+  const state = mapLemonSqueezyState(typeof attrs.status === 'string' ? attrs.status : eventName)
+  await repository.upsertSubscription({ id: `sub_${stableId(`${userId}:${payload.data?.id ?? eventId}`).slice(0, 12)}`, user_id: userId, state, lemon_squeezy_customer_id: stringifyNullable(attrs.customer_id), lemon_squeezy_subscription_id: payload.data?.id ?? null, lemon_squeezy_variant_id: stringifyNullable(attrs.variant_id), plan_id: planId, current_period_start: stringifyNullable(attrs.created_at), current_period_end: stringifyNullable(attrs.renews_at), cancel_at_period_end: Boolean(attrs.cancelled), metadata: { lemon_squeezy_event_name: eventName }, created_at: now, updated_at: now })
+  const credits = state === 'active_paid' || state === 'trial' ? billingPlans[planId].credits : 0
+  if (credits > 0) await repository.addCreditLedgerEntry(userId, credits, 'manual_adjustment', undefined, { source: 'lemon_squeezy', lemon_squeezy_event_id: eventId, plan_id: planId, event_name: eventName })
+  return { processed: true, duplicate: false, user_id: userId, plan_id: planId, credits_granted: credits }
+}
+function isLemonSqueezyConfigured() { return Boolean(process.env.LEMON_SQUEEZY_API_KEY && process.env.LEMON_SQUEEZY_STORE_ID && (process.env.LEMON_SQUEEZY_STARTER_VARIANT_ID || process.env.LEMON_SQUEEZY_PRO_VARIANT_ID)) }
+function normalizeBillingPlanId(value: string): Exclude<BillingPlanId, 'free'> { return value === 'pro' ? 'pro' : 'starter' }
+function mapLemonSqueezyState(value: string): BillingState { const normalized = value.toLowerCase(); if (normalized.includes('trial')) return 'trial'; if (normalized.includes('cancel')) return 'canceled'; if (normalized.includes('past_due') || normalized.includes('past due')) return 'past_due'; return 'active_paid' }
+function stringifyNullable(value: unknown) { return value === undefined || value === null ? null : String(value) }
+function toSubscriptionRow(subscription: HudforgeSubscription) { return { id: subscription.id, user_id: subscription.user_id, state: subscription.state, lemon_squeezy_customer_id: subscription.lemon_squeezy_customer_id ?? null, lemon_squeezy_subscription_id: subscription.lemon_squeezy_subscription_id ?? null, lemon_squeezy_variant_id: subscription.lemon_squeezy_variant_id ?? null, plan_id: subscription.plan_id, current_period_start: subscription.current_period_start ?? null, current_period_end: subscription.current_period_end ?? null, cancel_at_period_end: subscription.cancel_at_period_end, metadata: subscription.metadata ?? {}, created_at: subscription.created_at, updated_at: subscription.updated_at } }
+function fromSubscriptionRow(row: Record<string, unknown>): HudforgeSubscription { return { id: String(row.id), user_id: String(row.user_id), state: row.state as BillingState, lemon_squeezy_customer_id: stringifyNullable(row.lemon_squeezy_customer_id), lemon_squeezy_subscription_id: stringifyNullable(row.lemon_squeezy_subscription_id), lemon_squeezy_variant_id: stringifyNullable(row.lemon_squeezy_variant_id), plan_id: (row.plan_id === 'pro' ? 'pro' : row.plan_id === 'starter' ? 'starter' : 'free') as BillingPlanId, current_period_start: stringifyNullable(row.current_period_start), current_period_end: stringifyNullable(row.current_period_end), cancel_at_period_end: Boolean(row.cancel_at_period_end), metadata: row.metadata as Record<string, unknown> | undefined, created_at: String(row.created_at), updated_at: String(row.updated_at) } }
+
 export function getProviderStatus(): ProviderStatus { return { llm: process.env.OPENROUTER_API_KEY ? 'openrouter_gemini' : process.env.GEMINI_API_KEY ? 'gemini' : 'mock', assets: process.env.FAL_KEY ? 'fal' : 'missing_fal_key', billing: process.env.LEMON_SQUEEZY_API_KEY ? 'lemon_squeezy' : 'mock' } }
 export function assertGenerationStatus(status: string): asserts status is GenerationStatus { if (!generationStatuses.includes(status as GenerationStatus)) throw new HudforgeServiceError(`Unsupported generation status: ${status}`, 400, 'invalid_status') }
 export function exportLayoutToLuau(spec: OptimizedGenerationSpec): string { const lines = [`-- HUDForge export: ${escapeLuauString(spec.intent_summary)}`, `-- UI type: ${spec.ui_type}`, `-- Style: ${spec.style}`, '-- Asset refs are listed in assets/assets.json. Replace rbxassetid://0 with uploaded Roblox asset IDs.', 'local ScreenGui = Instance.new("ScreenGui")', `ScreenGui.Name = "${escapeLuauString(spec.lua_spec.screen_gui_name)}"`, 'ScreenGui.ResetOnSpawn = false', 'ScreenGui.IgnoreGuiInset = true', 'ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling', '']; for (const instance of spec.lua_spec.root_instances) appendInstanceLuau(lines, instance); lines.push('return ScreenGui', ''); return lines.join('\n') }

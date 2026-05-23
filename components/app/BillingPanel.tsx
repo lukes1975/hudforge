@@ -10,16 +10,23 @@ type BillingResponse = {
   error?: { message: string }
 }
 
+type CheckoutResponse = {
+  success: boolean
+  checkout?: { checkout_url: string; plan_id: string }
+  error?: { message: string }
+}
+
 const planCards = [
-  { name: 'Free', price: '£0', detail: 'Validate the workflow with mock-safe generation credits.', highlight: 'Current foundation plan' },
-  { name: 'Starter', price: '£10/mo', detail: 'Planned paid path for more exports and faster iteration.', highlight: 'Checkout placeholder' },
-  { name: 'Pro', price: '£30/mo', detail: 'Future high-volume creator/team workflow tier.', highlight: 'Not live yet' },
+  { id: 'free', name: 'Free', price: '£0', detail: 'Validate the workflow with starter generation credits.', highlight: 'Current foundation plan' },
+  { id: 'starter', name: 'Starter', price: '£10/mo', detail: '150 credits/month for solo Roblox creators testing real UI exports.', highlight: 'Live checkout when configured' },
+  { id: 'pro', name: 'Pro', price: '£30/mo', detail: '600 credits/month for high-volume creators and small teams.', highlight: 'Best margin path' },
 ]
 
 export function BillingPanel() {
   const [billing, setBilling] = useState<BillingStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [checkoutPlan, setCheckoutPlan] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -43,6 +50,23 @@ export function BillingPanel() {
       active = false
     }
   }, [])
+
+  async function startCheckout(planId: string) {
+    setError(null)
+    setCheckoutPlan(planId)
+    try {
+      const payload = await fetchJson<CheckoutResponse>('/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan_id: planId }),
+      })
+      if (!payload.success || !payload.checkout?.checkout_url) throw new Error(payload.error?.message ?? 'Checkout unavailable')
+      window.location.assign(payload.checkout.checkout_url)
+    } catch (checkoutError) {
+      setError(checkoutError instanceof Error ? checkoutError.message : 'Checkout unavailable')
+      setCheckoutPlan(null)
+    }
+  }
 
   if (loading) {
     return <StatusCard title="Loading billing" detail="Fetching GET /api/billing/status..." />
@@ -68,8 +92,8 @@ export function BillingPanel() {
             <h2 className="mt-3 text-2xl font-semibold text-white">{plan.name}</h2>
             <p className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-cyan-100">{plan.price}</p>
             <p className="mt-3 text-sm leading-6 text-slate-400">{plan.detail}</p>
-            <button type="button" disabled={!billing.checkout_ready || plan.name === billing.current_plan.name} className="forge-button forge-button--secondary mt-5 w-full justify-center">
-              {plan.name === billing.current_plan.name ? billing.current_plan.cta : billing.checkout_ready ? 'Upgrade' : 'Checkout not configured'}
+            <button type="button" disabled={!billing.checkout_ready || plan.id === billing.current_plan.id || checkoutPlan === plan.id} onClick={() => void startCheckout(plan.id)} className="forge-button forge-button--secondary mt-5 w-full justify-center">
+              {plan.id === billing.current_plan.id ? billing.current_plan.cta : checkoutPlan === plan.id ? 'Opening checkout...' : billing.checkout_ready ? 'Upgrade' : 'Checkout not configured'}
             </button>
           </article>
         ))}
@@ -79,7 +103,7 @@ export function BillingPanel() {
         <p className="section-kicker">Integration status</p>
         <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white">Lemon Squeezy-ready, not claiming live billing.</h2>
         <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-400">
-          This page now reads the existing billing status API. Real checkout remains disabled until Lemon Squeezy credentials and checkout URLs are configured.
+          This page reads billing status, opens Lemon Squeezy checkout when credentials are configured, and credits accounts from signed Lemon Squeezy webhooks.
         </p>
       </section>
     </div>
