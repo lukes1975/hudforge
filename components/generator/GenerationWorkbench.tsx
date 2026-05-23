@@ -88,16 +88,13 @@ export function GenerationWorkbench() {
   }
 
   function downloadExportPackage() {
-    if (!exportPackage) return
-    const blob = new Blob([JSON.stringify(exportPackage, null, 2)], { type: 'application/json;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
+    if (!exportPackage?.download_url) return
     const anchor = document.createElement('a')
-    anchor.href = url
+    anchor.href = exportPackage.download_url
     anchor.download = exportPackage.filename
     document.body.appendChild(anchor)
     anchor.click()
     anchor.remove()
-    URL.revokeObjectURL(url)
     setDownloaded(true)
   }
 
@@ -206,12 +203,12 @@ export function GenerationWorkbench() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="section-kicker">Export</p>
-              <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white">json_payload package</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-400">Contains manifest.json, layout.json, code/MainUI.lua, and assets/assets.json. ZIP is documented as the next archive wrapper.</p>
+              <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white">ZIP package</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">Downloads a real .zip with manifest.json, layout.json, code/MainUI.lua, assets/assets.json, and a Roblox Studio import guide.</p>
             </div>
             <div className="flex flex-wrap gap-3">
               <button type="button" disabled={!generation || status === 'exporting'} onClick={handleExport} className="forge-button forge-button--secondary">{status === 'exporting' ? 'Exporting...' : 'Build export'}</button>
-              <button type="button" disabled={!exportPackage} onClick={downloadExportPackage} className="forge-button forge-button--primary">{downloaded ? 'Downloaded' : 'Download JSON'}</button>
+              <button type="button" disabled={!exportPackage?.download_url} onClick={downloadExportPackage} className="forge-button forge-button--primary">{downloaded ? 'Downloaded' : 'Download ZIP'}</button>
             </div>
           </div>
 

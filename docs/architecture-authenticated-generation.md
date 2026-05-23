@@ -12,7 +12,7 @@ The primary product route is `/generate`. `/dashboard` points users into that lo
 
 - `POST /api/generate/optimize` creates a deterministic Roblox UI layout spec from a prompt.
 - `POST /api/generate/assets` debits credits and calls FAL for the fixed 5-asset bundle.
-- `POST /api/generate/export` creates a `json_payload` export package.
+- `POST /api/generate/export` creates a downloadable ZIP export package.
 - `GET /api/generations` returns persisted generation history for the signed-in user when Supabase is configured.
 - `POST /api/usage/event` records typed usage events through the repository layer.
 - `GET+POST /api/settings` returns and updates generation defaults through the repository layer.
@@ -57,7 +57,7 @@ Unit tests use an injected in-memory repository and fake FAL provider. Productio
 
 ## Export Package
 
-Exports use `json_payload` rather than a ZIP dependency. The package includes:
+Exports now use a dependency-free ZIP archive. The package includes:
 
 - `manifest.json`
 - `layout.json`

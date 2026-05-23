@@ -2,6 +2,32 @@
 
 Simple record of meaningful changes.
 
+## 2026-05-23 — ZIP export and Roblox import guide added
+
+Changed:
+
+- Replaced `json_payload` export as the primary package format with a real dependency-free ZIP archive.
+- Export packages now include `manifest.json`, `layout.json`, `code/MainUI.lua`, `assets/assets.json`, and `README_IMPORT.md`.
+- Added ZIP base64 download payload, filename, and byte size.
+- Updated the Generate page download button to download the ZIP directly.
+- Polished the Roblox Studio import guide with concrete upload/replacement steps.
+
+Why it matters:
+
+- A downloadable ZIP feels like a real SaaS output instead of an internal API response.
+- Roblox creators can now inspect files, copy Luau, and follow import steps without guessing.
+- This improves activation before the later Roblox Studio plugin exists.
+
+Verification:
+
+- Added ZIP export tests.
+- Targeted export tests passed.
+- Local API smoke returned `package.format = "zip"`, `.zip` filename, base64 ZIP URL, 5 files, and byte size.
+
+Follow-up:
+
+- Add cost tracking next, then Lemon Squeezy checkout/webhooks.
+
 ## 2026-05-23 — Real OpenRouter/Gemini optimizer added
 
 Changed:

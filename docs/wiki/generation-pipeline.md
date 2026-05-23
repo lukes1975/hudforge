@@ -35,18 +35,19 @@ Each generation should produce a fixed UI kit, not random loose images:
 Done:
 
 - Basic optimizer/spec generation exists.
+- Real OpenRouter Gemini 2.5 Flash optimizer exists.
+- Strict optimizer schema validation and normalization exists.
 - Deterministic JSON/layout to Luau export exists.
 - Asset bundle generation can call FAL.
-- Export package includes:
+- ZIP package contains:
   - `manifest.json`
   - `layout.json`
   - `code/MainUI.lua`
   - `assets/assets.json`
   - `README_IMPORT.md`
+- ZIP download payload is returned by the export API.
+- Import guide explains how to upload generated image URLs and replace Roblox asset IDs.
 
 Still needed:
 
-- Real OpenRouter Gemini 2.5 Flash optimizer.
-- Strict schema validation and repair.
 - Better browser preview from the generated layout/assets.
-- Real ZIP wrapping around the export files.

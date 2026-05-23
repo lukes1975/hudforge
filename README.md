@@ -1,6 +1,6 @@
 # HUDForge
 
-Roblox UI workflow platform. Generate structured UI specs, mock-safe asset bundles, browser previews, and deterministic Luau/json_payload exports from simple prompts.
+Roblox UI workflow platform. Generate structured UI specs, real asset bundles, browser previews, deterministic Luau, and downloadable ZIP exports from simple prompts.
 
 ## Setup
 
@@ -75,7 +75,7 @@ Generation APIs:
 - `POST /api/settings`
 - `GET /api/billing/status`
 
-The authenticated flow is mock-safe by default. It does not require external LLM, image, billing, or database keys for local development. Export returns a `json_payload` package containing `manifest.json`, `layout.json`, `code/MainUI.lua`, and `assets/assets.json`.
+The authenticated flow supports local deterministic development while production provider paths use real OpenRouter/FAL when configured. Export returns a downloadable ZIP package containing `manifest.json`, `layout.json`, `code/MainUI.lua`, `assets/assets.json`, and `README_IMPORT.md`.
 
 ## Brand + Distribution Assets
 

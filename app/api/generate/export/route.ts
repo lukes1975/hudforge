@@ -17,6 +17,7 @@ export async function POST(request: Request) {
       status: exportPackage?.status ?? 'exported',
       package: exportPackage?.package,
       download_url: exportPackage?.download_url ?? null,
+      byte_size: exportPackage?.byte_size ?? null,
       limitations: exportPackage?.limitations ?? [],
     })
   } catch (error) {

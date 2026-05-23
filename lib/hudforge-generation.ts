@@ -42,7 +42,7 @@ export interface AssetBundle { generation_id: string; status: 'assets_ready'; as
 export interface ExportPackageFile { path: 'manifest.json' | 'layout.json' | 'code/MainUI.lua' | 'assets/assets.json' | 'README_IMPORT.md'; content_type: 'application/json' | 'text/x-lua' | 'text/markdown'; content?: string }
 export interface ExportPackageManifest { generation_id: string; format: 'zip' | 'json_payload'; files: ExportPackageFile[] }
 export interface ExportResponse { generation_id: string; status: 'exported'; package: ExportPackageManifest; download_url: string | null; limitations: string[] }
-export interface ExportPackagePayload extends ExportResponse { filename: string; files: Required<ExportPackageFile>[] }
+export interface ExportPackagePayload extends ExportResponse { filename: string; files: Required<ExportPackageFile>[]; zip_base64?: string; byte_size?: number }
 export interface BillingPlan { id: 'free' | 'starter' | 'pro'; name: string; price_gbp_monthly: number; credits: number; cta: string }
 export type BillingState = 'free' | 'trial' | 'active_paid' | 'past_due' | 'canceled' | 'unknown_mock'
 export interface BillingStatus { state: BillingState; current_plan: BillingPlan; credits_included: number; credits_used: number; credits_remaining: number; checkout_ready: boolean; customer_portal_ready: boolean; provider: 'lemon_squeezy' | 'mock' }
@@ -431,8 +431,132 @@ function buildOptimizedSpec(generation_id: string, prompt: string, ui_type: UiTy
 function buildLayoutNodes(ui_type: UiType, title: string): LayoutNode[] { const mainText = ui_type === 'shop_ui' ? 'Featured Items' : ui_type === 'inventory' ? 'Inventory' : ui_type === 'reward_screen' ? 'Reward Unlocked' : ui_type === 'main_menu' ? 'Main Menu' : 'Player HUD'; const actionText = ui_type === 'shop_ui' ? 'BUY' : ui_type === 'inventory' ? 'EQUIP' : ui_type === 'reward_screen' ? 'CLAIM' : ui_type === 'main_menu' ? 'PLAY' : 'BOOST'; return [{ id: 'background_panel', type: 'ImageLabel', name: 'BackgroundPanel', asset_ref: 'background_panel', position: { x_scale: 0, x_offset: 0, y_scale: 0, y_offset: 0 }, size: { x_scale: 1, x_offset: 0, y_scale: 1, y_offset: 0 }, z_index: 1, text: null, children: [] }, { id: 'main_frame', type: 'Frame', name: 'MainFrame', asset_ref: 'main_frame', position: { x_scale: 0.5, x_offset: -175, y_scale: 0.5, y_offset: -245 }, size: { x_scale: 0, x_offset: 350, y_scale: 0, y_offset: 490 }, z_index: 2, text: null, children: [{ id: 'title_label', type: 'TextLabel', name: 'TitleLabel', asset_ref: null, position: { x_scale: 0, x_offset: 24, y_scale: 0, y_offset: 20 }, size: { x_scale: 1, x_offset: -48, y_scale: 0, y_offset: 48 }, z_index: 3, text: title, children: [] }, { id: 'currency_icon', type: 'ImageLabel', name: 'CurrencyIcon', asset_ref: 'currency_icon', position: { x_scale: 0, x_offset: 28, y_scale: 0, y_offset: 92 }, size: { x_scale: 0, x_offset: 48, y_scale: 0, y_offset: 48 }, z_index: 3, text: null, children: [] }, { id: 'summary_label', type: 'TextLabel', name: 'SummaryLabel', asset_ref: null, position: { x_scale: 0, x_offset: 88, y_scale: 0, y_offset: 92 }, size: { x_scale: 1, x_offset: -116, y_scale: 0, y_offset: 48 }, z_index: 3, text: mainText, children: [] }, { id: 'primary_button', type: 'TextButton', name: 'PrimaryButton', asset_ref: 'primary_button', position: { x_scale: 0.5, x_offset: -124, y_scale: 1, y_offset: -92 }, size: { x_scale: 0, x_offset: 248, y_scale: 0, y_offset: 54 }, z_index: 4, text: actionText, children: [] }, { id: 'secondary_button', type: 'TextButton', name: 'CloseButton', asset_ref: 'secondary_button', position: { x_scale: 1, x_offset: -58, y_scale: 0, y_offset: 18 }, size: { x_scale: 0, x_offset: 38, y_scale: 0, y_offset: 38 }, z_index: 5, text: 'X', children: [] }] }] }
 function flattenNodesForLua(nodes: LayoutNode[], parent: string): LuaInstanceSpec[] { return nodes.flatMap((node) => [{ id: node.id, class_name: node.type, name: node.name, parent, asset_ref: node.asset_ref, text: node.text, position: node.position, size: node.size, z_index: node.z_index }, ...flattenNodesForLua(node.children, node.name)]) }
 function appendInstanceLuau(lines: string[], instance: LuaInstanceSpec) { const variableName = toRobloxIdentifier(instance.name); const parentName = instance.parent === 'ScreenGui' ? 'ScreenGui' : toRobloxIdentifier(instance.parent); lines.push(`local ${variableName} = Instance.new("${instance.class_name}")`, `${variableName}.Name = "${escapeLuauString(instance.name)}"`, `${variableName}.Position = UDim2.new(${instance.position.x_scale}, ${instance.position.x_offset}, ${instance.position.y_scale}, ${instance.position.y_offset})`, `${variableName}.Size = UDim2.new(${instance.size.x_scale}, ${instance.size.x_offset}, ${instance.size.y_scale}, ${instance.size.y_offset})`, `${variableName}.ZIndex = ${instance.z_index}`); if (instance.class_name === 'ImageLabel') { lines.push(`${variableName}.BackgroundTransparency = 1`, `${variableName}.Image = "rbxassetid://0" -- manifest asset_ref: ${escapeLuauString(instance.asset_ref ?? 'none')}`) } else { lines.push(`${variableName}.BackgroundColor3 = Color3.fromRGB(16, 24, 39)`, `${variableName}.BorderSizePixel = 0`) } if (instance.text && (instance.class_name === 'TextLabel' || instance.class_name === 'TextButton')) lines.push(`${variableName}.Font = Enum.Font.GothamBold`, `${variableName}.Text = "${escapeLuauString(instance.text)}"`, `${variableName}.TextColor3 = Color3.fromRGB(255, 255, 255)`, `${variableName}.TextScaled = true`, `${variableName}.BackgroundTransparency = ${instance.class_name === 'TextLabel' ? 1 : 0}`); lines.push(`${variableName}.Parent = ${parentName}`, '') }
-function buildExportPackage(spec: OptimizedGenerationSpec, assetBundle?: AssetBundle): ExportPackagePayload { const lua = exportLayoutToLuau(spec); const manifest = { product: 'HUDForge', generation_id: spec.generation_id, generated_at: new Date().toISOString(), ui_type: spec.ui_type, style: spec.style, entrypoint: 'code/MainUI.lua', files: ['manifest.json', 'layout.json', 'code/MainUI.lua', 'assets/assets.json', 'README_IMPORT.md'] }; const files: Required<ExportPackageFile>[] = [{ path: 'manifest.json', content_type: 'application/json', content: JSON.stringify(manifest, null, 2) }, { path: 'layout.json', content_type: 'application/json', content: JSON.stringify(spec.layout_spec, null, 2) }, { path: 'code/MainUI.lua', content_type: 'text/x-lua', content: lua }, { path: 'assets/assets.json', content_type: 'application/json', content: JSON.stringify({ assets: assetBundle?.assets ?? [], asset_refs: spec.asset_list }, null, 2) }, { path: 'README_IMPORT.md', content_type: 'text/markdown', content: buildImportReadme(spec) }]; return { generation_id: spec.generation_id, status: 'exported', package: { generation_id: spec.generation_id, format: 'json_payload', files: files.map(({ path, content_type }) => ({ path, content_type })) }, download_url: null, limitations: ['json_payload is implemented now; ZIP archive wrapping is next. Asset URLs must be uploaded/imported into Roblox and substituted for rbxassetid://0 refs.'], filename: `${slugify(spec.ui_type)}-${slugify(spec.style)}-${spec.generation_id}.json`, files } }
-function buildImportReadme(spec: OptimizedGenerationSpec) { return `# HUDForge Roblox Studio Import\n\n1. Open Roblox Studio.\n2. Create a LocalScript or ModuleScript where you want to instantiate the UI.\n3. Paste \`code/MainUI.lua\` and run/require it to create \`${spec.lua_spec.screen_gui_name}\`.\n4. Upload generated assets to Roblox and replace each \`rbxassetid://0\` in \`MainUI.lua\` using \`assets/assets.json\` as the asset reference map.\n5. Parent the returned ScreenGui to \`Players.LocalPlayer.PlayerGui\` for runtime use.\n\nThis export is deterministic from \`layout.json\`; edit layout first, then regenerate Lua for consistent structure.\n` }
+function buildExportPackage(spec: OptimizedGenerationSpec, assetBundle?: AssetBundle): ExportPackagePayload {
+  const lua = exportLayoutToLuau(spec)
+  const generatedAt = new Date().toISOString()
+  const filename = `${slugify(spec.ui_type)}-${slugify(spec.style)}-${spec.generation_id}.zip`
+  const manifest = {
+    product: 'HUDForge',
+    generation_id: spec.generation_id,
+    generated_at: generatedAt,
+    ui_type: spec.ui_type,
+    style: spec.style,
+    entrypoint: 'code/MainUI.lua',
+    import_guide: 'README_IMPORT.md',
+    asset_manifest: 'assets/assets.json',
+    files: ['manifest.json', 'layout.json', 'code/MainUI.lua', 'assets/assets.json', 'README_IMPORT.md'],
+  }
+  const files: Required<ExportPackageFile>[] = [
+    { path: 'manifest.json', content_type: 'application/json', content: JSON.stringify(manifest, null, 2) },
+    { path: 'layout.json', content_type: 'application/json', content: JSON.stringify(spec.layout_spec, null, 2) },
+    { path: 'code/MainUI.lua', content_type: 'text/x-lua', content: lua },
+    { path: 'assets/assets.json', content_type: 'application/json', content: JSON.stringify({ assets: assetBundle?.assets ?? [], asset_refs: spec.asset_list, replacement_note: 'Upload each image URL to Roblox, then replace matching rbxassetid://0 placeholders in code/MainUI.lua.' }, null, 2) },
+    { path: 'README_IMPORT.md', content_type: 'text/markdown', content: buildImportReadme(spec) },
+  ]
+  const zip = createZipArchive(files.map((file) => ({ path: file.path, content: file.content })))
+  const zipBase64 = Buffer.from(zip).toString('base64')
+  return {
+    generation_id: spec.generation_id,
+    status: 'exported',
+    package: { generation_id: spec.generation_id, format: 'zip', files: files.map(({ path, content_type }) => ({ path, content_type })) },
+    download_url: `data:application/zip;base64,${zipBase64}`,
+    limitations: ['Upload generated image URLs to Roblox Creator Hub or Asset Manager, then replace rbxassetid://0 placeholders with the uploaded asset IDs.'],
+    filename,
+    files,
+    zip_base64: zipBase64,
+    byte_size: zip.length,
+  }
+}
+function buildImportReadme(spec: OptimizedGenerationSpec) {
+  return `# HUDForge Roblox Studio quick import
+
+This package contains a Roblox-ready UI hierarchy generated from your HUDForge prompt.
+
+## Files
+
+- \`code/MainUI.lua\` — deterministic Luau that creates \`${spec.lua_spec.screen_gui_name}\`.
+- \`layout.json\` — the editable layout source of truth.
+- \`assets/assets.json\` — generated image URLs and asset references.
+- \`manifest.json\` — package metadata.
+
+## Roblox Studio quick import
+
+1. Unzip this package.
+2. Open Roblox Studio and your place.
+3. Create a new \`ModuleScript\` under \`ReplicatedStorage\` or paste \`code/MainUI.lua\` into a \`LocalScript\` for testing.
+4. Upload each generated image URL listed in \`assets/assets.json\` through Creator Hub or Asset Manager.
+5. Replace every rbxassetid://0 placeholder in \`code/MainUI.lua\` with the uploaded Roblox asset IDs.
+6. At runtime, parent the returned ScreenGui to \`Players.LocalPlayer.PlayerGui\`.
+
+Example runtime mount:
+
+\`\`\`lua
+local Players = game:GetService("Players")
+local screenGui = require(path.to.MainUI)
+screenGui.Parent = Players.LocalPlayer.PlayerGui
+\`\`\`
+
+## Notes
+
+- Text labels/buttons stay editable in Studio.
+- Image assets are referenced by manifest asset_ref comments in the Luau file.
+- If the layout needs changes, edit \`layout.json\` first and regenerate code through HUDForge for consistency.
+`
+}
+
+export function createZipArchive(files: Array<{ path: string; content: string | Uint8Array }>): Uint8Array {
+  const encoder = new TextEncoder()
+  const localParts: Uint8Array[] = []
+  const centralParts: Uint8Array[] = []
+  let offset = 0
+
+  for (const file of files) {
+    const nameBytes = encoder.encode(file.path)
+    const contentBytes = typeof file.content === 'string' ? encoder.encode(file.content) : file.content
+    const crc = crc32(contentBytes)
+    const localHeader = concatBytes([
+      u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(0), u32(crc), u32(contentBytes.length), u32(contentBytes.length), u16(nameBytes.length), u16(0), nameBytes,
+    ])
+    localParts.push(localHeader, contentBytes)
+    centralParts.push(concatBytes([
+      u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(0), u32(crc), u32(contentBytes.length), u32(contentBytes.length), u16(nameBytes.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset), nameBytes,
+    ]))
+    offset += localHeader.length + contentBytes.length
+  }
+
+  const centralDirectory = concatBytes(centralParts)
+  const end = concatBytes([u32(0x06054b50), u16(0), u16(0), u16(files.length), u16(files.length), u32(centralDirectory.length), u32(offset), u16(0)])
+  return concatBytes([...localParts, centralDirectory, end])
+}
+
+export function listZipEntries(zip: Uint8Array): string[] {
+  const decoder = new TextDecoder()
+  const entries: string[] = []
+  for (let index = 0; index < zip.length - 4; index += 1) {
+    if (zip[index] === 0x50 && zip[index + 1] === 0x4b && zip[index + 2] === 0x01 && zip[index + 3] === 0x02) {
+      const nameLength = zip[index + 28] | (zip[index + 29] << 8)
+      const extraLength = zip[index + 30] | (zip[index + 31] << 8)
+      const commentLength = zip[index + 32] | (zip[index + 33] << 8)
+      const nameStart = index + 46
+      entries.push(decoder.decode(zip.slice(nameStart, nameStart + nameLength)))
+      index = nameStart + nameLength + extraLength + commentLength - 1
+    }
+  }
+  return entries
+}
+
+function concatBytes(parts: Uint8Array[]) {
+  const total = parts.reduce((sum, part) => sum + part.length, 0)
+  const output = new Uint8Array(total)
+  let offset = 0
+  for (const part of parts) { output.set(part, offset); offset += part.length }
+  return output
+}
+function u16(value: number) { const bytes = new Uint8Array(2); new DataView(bytes.buffer).setUint16(0, value, true); return bytes }
+function u32(value: number) { const bytes = new Uint8Array(4); new DataView(bytes.buffer).setUint32(0, value >>> 0, true); return bytes }
+const crcTable = Array.from({ length: 256 }, (_, index) => { let crc = index; for (let bit = 0; bit < 8; bit += 1) crc = crc & 1 ? 0xedb88320 ^ (crc >>> 1) : crc >>> 1; return crc >>> 0 })
+function crc32(bytes: Uint8Array) { let crc = 0xffffffff; for (const byte of bytes) crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8); return (crc ^ 0xffffffff) >>> 0 }
+
 function normalizeSettingsInput(input?: Partial<UserSettings>): UserSettings { return { default_export_format: input?.default_export_format === 'lua' || input?.default_export_format === 'manifest' ? input.default_export_format : 'zip', mobile_first: typeof input?.mobile_first === 'boolean' ? input.mobile_first : true, default_ui_type: normalizeUiType(input?.default_ui_type), default_style: normalizeGenerationStyle(input?.default_style), save_history: typeof input?.save_history === 'boolean' ? input.save_history : true } }
 function normalizeUiType(value?: string): UiType { if (value === 'shop' || value === 'shop_ui') return 'shop_ui'; if (value === 'menu' || value === 'main_menu') return 'main_menu'; if (value === 'reward' || value === 'reward_screen') return 'reward_screen'; if (value === 'hud' || value === 'inventory') return value; return 'shop_ui' }
 function normalizeGenerationStyle(value?: string): GenerationStyle { if (value === 'sciFi' || value === 'sci-fi' || value === 'sci_fi' || value === 'cyberpunk') return 'sci_fi'; if (value === 'futuristic' || value === 'premium') return 'premium'; if (value === 'fantasy' || value === 'anime') return 'anime'; if (value === 'neon' || value === 'cartoon' || value === 'minimal') return value; return 'neon' }

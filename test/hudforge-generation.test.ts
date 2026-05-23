@@ -95,7 +95,7 @@ describe('authenticated generation foundation', () => {
     expect(withAssets.status).toBe('assets_ready')
     expect(withAssets.asset_bundle?.status).toBe('assets_ready')
     expect(exported.status).toBe('exported')
-    expect(exported.export_package?.package.format).toBe('json_payload')
+    expect(exported.export_package?.package.format).toBe('zip')
     expect(exported.export_package?.package.files.map((file) => file.path)).toEqual([
       'manifest.json',
       'layout.json',

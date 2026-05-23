@@ -23,4 +23,5 @@ Keep it simple. Avoid jargon unless it is necessary.
 - [FAL Image Generation](./fal-image-generation.md)
 - [Durable Analytics](./durable-analytics.md)
 - [OpenRouter Gemini Optimizer](./openrouter-gemini-optimizer.md)
+- [ZIP Export](./zip-export.md)
 - [Change Log](./changelog.md)
