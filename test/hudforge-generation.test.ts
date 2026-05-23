@@ -1,15 +1,34 @@
 import { describe, expect, it } from 'vitest'
 import {
   assertGenerationStatus,
-  createAssetsForGeneration,
-  createExportForGeneration,
-  createOptimizedGeneration,
+  createRepositoryBackedHudforgeService,
   exportLayoutToLuau,
   generateMockAssets,
   generationStatuses,
+  memoryHudforgeRepository,
   optimizePromptForRobloxUi,
-  updateSettings,
+  type AssetBundle,
+  type OptimizedGenerationSpec,
 } from '../lib/hudforge-generation'
+
+function fakeFalAssetProvider(spec: OptimizedGenerationSpec): Promise<AssetBundle> {
+  return Promise.resolve({
+    generation_id: spec.generation_id,
+    status: 'assets_ready',
+    assets: Object.entries(spec.image_prompts).map(([name, imagePrompt]) => ({
+      id: `${name}_fake`,
+      name,
+      type: imagePrompt.intended_use,
+      url: `https://assets.example.test/${name}.png`,
+      width: 1024,
+      height: 1024,
+      transparent: imagePrompt.transparent,
+      provider: 'fal',
+      prompt_used: imagePrompt.prompt,
+    })),
+    errors: [],
+  })
+}
 
 describe('authenticated generation foundation', () => {
   it('exposes the required staged statuses in order', () => {
@@ -65,11 +84,12 @@ describe('authenticated generation foundation', () => {
     expect(luau).toContain('return ScreenGui')
   })
 
-  it('builds the full optimize assets export lifecycle', () => {
+  it('builds the full optimize assets export lifecycle', async () => {
+    const service = createRepositoryBackedHudforgeService(memoryHudforgeRepository(), { assetProvider: fakeFalAssetProvider })
     const userId = 'user_test'
-    const optimized = createOptimizedGeneration(userId, { prompt: 'Shop UI for an anime simulator', ui_type: 'shop_ui', style: 'anime' })
-    const withAssets = createAssetsForGeneration(userId, optimized.id)
-    const exported = createExportForGeneration(userId, optimized.id)
+    const optimized = await service.createOptimizedGeneration(userId, { prompt: 'Shop UI for an anime simulator', ui_type: 'shop_ui', style: 'anime' })
+    const withAssets = await service.createAssetsForGeneration(userId, optimized.id)
+    const exported = await service.createExportForGeneration(userId, optimized.id)
 
     expect(optimized.status).toBe('optimized')
     expect(withAssets.status).toBe('assets_ready')
@@ -81,12 +101,14 @@ describe('authenticated generation foundation', () => {
       'layout.json',
       'code/MainUI.lua',
       'assets/assets.json',
+      'README_IMPORT.md',
     ])
     expect(exported.export_package?.files.find((file) => file.path === 'code/MainUI.lua')?.content).toContain('ScreenGui')
   })
 
-  it('normalizes settings using brief-compatible names', () => {
-    const settings = updateSettings('user_settings', {
+  it('normalizes settings using brief-compatible names', async () => {
+    const service = createRepositoryBackedHudforgeService(memoryHudforgeRepository())
+    const settings = await service.updateSettings('user_settings', {
       default_style: 'sci_fi',
       default_ui_type: 'reward_screen',
       default_export_format: 'manifest',

@@ -6,7 +6,7 @@ export async function POST(request: Request) {
     const userId = await requireHudforgeUser()
     const body = (await request.json()) as { generation_id?: unknown; generationId?: unknown }
     const generationId = typeof body.generation_id === 'string' ? body.generation_id : typeof body.generationId === 'string' ? body.generationId : ''
-    const generation = createExportForGeneration(userId, generationId)
+    const generation = await createExportForGeneration(userId, generationId)
     const exportPackage = generation.export_package
 
     return hudforgeJson({

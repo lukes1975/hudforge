@@ -5,7 +5,7 @@ export async function POST(request: Request) {
   try {
     const userId = await requireHudforgeUser()
     const body = await request.json()
-    const generation = createOptimizedGeneration(userId, body)
+    const generation = await createOptimizedGeneration(userId, body)
     return hudforgeJson(
       {
         generation,
