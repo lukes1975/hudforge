@@ -20,7 +20,7 @@ export default function TemplatesPage() {
           eyebrow="Template gallery"
           title="Fantasy interface systems for Roblox builders."
           copy="Browse starter HUD patterns that encode layout, theme, export intent, and Roblox production constraints."
-          primary={{ label: 'Join Waitlist', href: '/contact#waitlist' }}
+          primary={{ label: 'Get started', href: '/sign-up' }}
           secondary={{ label: 'How It Works', href: '/how-it-works' }}
         >
           <div className="rune-card p-5">

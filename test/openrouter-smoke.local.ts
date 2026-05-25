@@ -1,5 +1,5 @@
 import { readFileSync, existsSync } from 'node:fs'
-import { createOpenRouterGeminiOptimizer } from '../lib/hudforge-generation'
+import { createOpenRouterOptimizer } from '../lib/hudforge-generation'
 
 function loadEnv(path: string) {
   if (!existsSync(path)) return
@@ -18,7 +18,7 @@ async function main() {
     return
   }
 
-  const optimizer = createOpenRouterGeminiOptimizer({ apiKey: process.env.OPENROUTER_API_KEY })
+  const optimizer = createOpenRouterOptimizer({ apiKey: process.env.OPENROUTER_API_KEY })
   const spec = await optimizer({
     generation_id: `gen_smoke_${Date.now()}`,
     prompt: 'Create a clean premium Roblox simulator shop UI with coin balance, buy button, close button, and mobile safe layout.',
@@ -36,7 +36,7 @@ async function main() {
   console.log(JSON.stringify({
     ok: true,
     provider: 'openrouter',
-    model: process.env.OPENROUTER_MODEL ?? 'google/gemini-2.5-flash',
+    model: process.env.OPENROUTER_MODEL ?? 'deepseek/deepseek-chat',
     generation_id: spec.generation_id,
     asset_count: Object.keys(spec.image_prompts).length,
     node_count: spec.layout_spec.nodes.length,

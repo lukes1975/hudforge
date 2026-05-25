@@ -14,10 +14,8 @@ const resourceLinks = [
 const legalLinks = [
   { label: 'Terms of Service', href: '/legal/terms' },
   { label: 'Privacy Policy', href: '/legal/privacy' },
-  { label: 'Cookie Policy', href: '/legal/cookies' },
   { label: 'Refund Policy', href: '/legal/refunds' },
   { label: 'AI Output Disclaimer', href: '/legal/ai-disclaimer' },
-  { label: 'Compliance', href: '/legal/compliance' },
 ]
 
 export function MarketingFooter() {
@@ -69,7 +67,7 @@ export function MarketingFooter() {
       </div>
       <div className="section-shell mt-10 flex flex-col gap-3 border-t border-white/8 pt-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
         <p>© 2026 HUDForge. Built for Roblox UI teams.</p>
-        <p>Private beta content is locally sourced from typed marketing records and legal launch documents.</p>
+        <p>Prices in USD. Billed via Lemon Squeezy.</p>
       </div>
     </footer>
   )

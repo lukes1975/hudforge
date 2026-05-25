@@ -1,50 +1,32 @@
 # HUDForge Copyright / DMCA Policy
 
-**Effective Date:** [INSERT EFFECTIVE DATE]
+**Effective Date:** May 26, 2026
 
-**Last Updated:** [INSERT LAST UPDATED DATE]
+**Last Updated:** May 26, 2026
 
-HUDForge respects intellectual property rights and expects users to do the same.
+## 1. Overview
 
-## 1. Reporting Copyright Infringement
+HUDForge respects intellectual property rights. If you believe content on the Service infringes your copyright, you may submit a notice as described below.
 
-If you believe that content available through HUDForge infringes your copyright, you may submit a notice to our designated copyright contact.
+## 2. DMCA Notice Requirements
 
-Your notice should include:
+Send copyright notices to **support@hudforge.app** with:
 
-- your full legal name and contact information;
-- identification of the copyrighted work claimed to have been infringed;
-- identification of the allegedly infringing material and enough information for us to locate it;
-- a statement that you have a good-faith belief that the disputed use is not authorized by the copyright owner, its agent, or the law;
-- a statement, under penalty of perjury where applicable, that the information in the notice is accurate and that you are the copyright owner or authorized to act on the owner's behalf; and
+- your contact information;
+- identification of the copyrighted work;
+- identification of the material you claim is infringing and its location on the Service;
+- a statement of good-faith belief that use is not authorized;
+- a statement, under penalty of perjury, that the information is accurate and you are authorized to act; and
 - your physical or electronic signature.
 
-## 2. Counter-Notices
+## 3. Counter-Notice
 
-If you believe content was removed or disabled in error, you may submit a counter-notice where permitted by law.
+If you believe content was removed in error, you may submit a counter-notice with the information required under applicable law.
 
-A counter-notice should include:
+## 4. Repeat Infringers
 
-- your name and contact details;
-- identification of the material removed or disabled and its prior location;
-- a statement under penalty of perjury that you have a good-faith belief the material was removed or disabled by mistake or misidentification; and
-- your consent to the applicable legal process if required by law.
+We may terminate accounts of repeat infringers where appropriate.
 
-## 3. Repeat Infringers
+## 5. Contact
 
-HUDForge may suspend or terminate accounts of repeat infringers where appropriate.
-
-## 4. Scope and Practical Limits
-
-Because HUDForge may generate or process user-submitted prompts and output dynamically, not all output is persistently published by HUDForge. However, we will review valid notices concerning hosted, stored, displayed, or materially controlled content within our systems.
-
-## 5. Copyright Contact
-
-**Designated Copyright Contact:** [INSERT DMCA / COPYRIGHT AGENT NAME]  
-**Email:** [INSERT DMCA EMAIL]  
-**Address:** [INSERT REGISTERED BUSINESS ADDRESS]  
-**Phone (optional):** [INSERT PHONE NUMBER OR REMOVE]
-
-## 6. Bad-Faith Notices
-
-Misrepresenting that material is infringing or was removed in error may expose the sender to legal liability.
+**DMCA / copyright:** support@hudforge.app

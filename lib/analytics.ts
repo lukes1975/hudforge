@@ -2,7 +2,6 @@ import type { GenerationStatus } from './hudforge-generation'
 
 export type AnalyticsSubscriptionState = 'free' | 'trial' | 'active_paid' | 'past_due' | 'canceled' | 'unknown_mock'
 
-export interface AnalyticsWaitlistRow { id: string; created_at: string }
 export interface AnalyticsProfileRow { user_id: string; created_at: string }
 export interface AnalyticsGenerationRow { id: string; user_id: string; status: GenerationStatus; created_at: string; updated_at: string; error?: string | null }
 export interface AnalyticsUsageEventRow { id: string; user_id: string; event_name: string; generation_id?: string | null; created_at: string; metadata?: Record<string, unknown> | null }
@@ -10,7 +9,6 @@ export interface AnalyticsCreditLedgerRow { id: string; user_id: string; delta: 
 export interface AnalyticsSubscriptionRow { id: string; user_id: string; state: AnalyticsSubscriptionState; created_at: string }
 
 export interface HudforgeAnalyticsRows {
-  waitlist: AnalyticsWaitlistRow[]
   profiles: AnalyticsProfileRow[]
   generations: AnalyticsGenerationRow[]
   usageEvents: AnalyticsUsageEventRow[]
@@ -19,7 +17,7 @@ export interface HudforgeAnalyticsRows {
 }
 
 export interface AnalyticsFunnelStage {
-  stage: 'waitlist' | 'signed_up' | 'generated' | 'exported' | 'paid'
+  stage: 'signed_up' | 'generated' | 'exported' | 'paid'
   count: number
   conversion_rate: number | null
 }
@@ -74,8 +72,7 @@ export function buildHudforgeAnalyticsSummary(
   const uniqueExportedUsers = unique(rows.generations.filter((generation) => generation.status === 'exported').map((generation) => generation.user_id)).length
   const activePaidUsers = unique(rows.subscriptions.filter((subscription) => subscription.state === 'active_paid').map((subscription) => subscription.user_id)).length
   const funnel: AnalyticsFunnelStage[] = [
-    { stage: 'waitlist', count: rows.waitlist.length, conversion_rate: null },
-    { stage: 'signed_up', count: rows.profiles.length, conversion_rate: safeRate(rows.profiles.length, rows.waitlist.length) },
+    { stage: 'signed_up', count: rows.profiles.length, conversion_rate: null },
     { stage: 'generated', count: uniqueGeneratedUsers, conversion_rate: safeRate(uniqueGeneratedUsers, rows.profiles.length) },
     { stage: 'exported', count: uniqueExportedUsers, conversion_rate: safeRate(uniqueExportedUsers, uniqueGeneratedUsers) },
     { stage: 'paid', count: activePaidUsers, conversion_rate: safeRate(activePaidUsers, uniqueExportedUsers) },
@@ -140,8 +137,7 @@ export function supabaseHudforgeAnalyticsRepository(): HudforgeAnalyticsReposito
       const supabase = await client()
       const start = startDate.toISOString()
       const end = endDate.toISOString()
-      const [waitlist, profiles, generations, usageEvents, creditLedger, subscriptions] = await Promise.all([
-        supabase.from('waitlist').select('id, created_at').gte('created_at', start).lte('created_at', end),
+      const [profiles, generations, usageEvents, creditLedger, subscriptions] = await Promise.all([
         supabase.from('hudforge_profiles').select('user_id, created_at').gte('created_at', start).lte('created_at', end),
         supabase.from('hudforge_generations').select('id, user_id, status, created_at, updated_at, error').gte('created_at', start).lte('created_at', end),
         supabase.from('hudforge_usage_events').select('id, user_id, event_name, generation_id, created_at, metadata').gte('created_at', start).lte('created_at', end),
@@ -149,11 +145,10 @@ export function supabaseHudforgeAnalyticsRepository(): HudforgeAnalyticsReposito
         supabase.from('hudforge_subscriptions').select('id, user_id, state, created_at').gte('created_at', start).lte('created_at', end),
       ])
 
-      const failed = [waitlist, profiles, generations, usageEvents, creditLedger, subscriptions].find((result) => result.error)
+      const failed = [profiles, generations, usageEvents, creditLedger, subscriptions].find((result) => result.error)
       if (failed?.error) throw failed.error
 
       return {
-        waitlist: (waitlist.data ?? []) as AnalyticsWaitlistRow[],
         profiles: (profiles.data ?? []) as AnalyticsProfileRow[],
         generations: (generations.data ?? []) as AnalyticsGenerationRow[],
         usageEvents: (usageEvents.data ?? []) as AnalyticsUsageEventRow[],
@@ -191,7 +186,6 @@ function buildBlockers(rows: HudforgeAnalyticsRows, providerFailures: number) {
   const failedGenerations = rows.generations.filter((generation) => generation.status === 'failed').length
   if (failedGenerations > 0) blockers.push(`${failedGenerations} failed generation${failedGenerations === 1 ? '' : 's'} need${failedGenerations === 1 ? 's' : ''} retry/error polish`)
   if (providerFailures > failedGenerations) blockers.push('Provider failure events are being recorded; inspect FAL/OpenRouter health')
-  if (rows.waitlist.length > 0 && rows.profiles.length === 0) blockers.push('Waitlist exists but activation/signup is not converting yet')
   if (rows.generations.length > 0 && !rows.generations.some((generation) => generation.status === 'exported')) blockers.push('Generations exist but exports are not happening yet')
   return blockers
 }

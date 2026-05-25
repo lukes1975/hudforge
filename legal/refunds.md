@@ -1,70 +1,78 @@
 # HUDForge Refund Policy
 
-**Effective Date:** [INSERT EFFECTIVE DATE]
+**Effective Date:** May 26, 2026
 
-**Last Updated:** [INSERT LAST UPDATED DATE]
-
-> Important: Finalize this policy before launch based on the actual pricing model, beta access scope, and applicable consumer laws.
+**Last Updated:** May 26, 2026
 
 ## 1. Overview
 
-This Refund Policy explains when refunds may be available for purchases of HUDForge subscriptions, one-time payments, or credit packages.
+This Refund Policy explains how refunds work for HUDForge subscriptions and credit top-ups. Payments are processed by **Lemon Squeezy**, which may act as merchant of record for applicable transactions.
 
-Payments may be processed through **Lemon Squeezy**, which may also act as merchant of record depending on the transaction structure.
+All prices are in **USD**.
 
-## 2. General Policy
+## 2. Monthly Subscriptions
 
-Unless otherwise required by applicable law or explicitly stated at checkout:
+HUDForge offers paid subscription plans, including:
 
-- fees are generally non-refundable once paid;
-- access may continue through the end of the current billing period after cancellation; and
-- unused time, unused credits, or partial months are generally not refundable unless required by law.
+- **Starter:** $19/month (250 credits per billing period)
+- **Pro:** $49/month (1,000 credits per billing period)
 
-## 3. Cases Where We May Consider a Refund
+Unless required by applicable consumer law:
 
-We may, in our discretion or where legally required, consider refunds in situations such as:
+- subscription fees are generally **non-refundable** once a billing period has started;
+- cancelling stops future renewals but does not automatically refund the current period; and
+- unused credits in the current period have no cash value.
+
+You can cancel at any time through your account billing portal. Access typically continues until the end of the paid period.
+
+## 3. Credit Top-Ups
+
+One-time credit top-ups are sold at:
+
+- $9 for 250 credits
+- $29 for 1,000 credits
+- $69 for 3,000 credits
+
+Top-up purchases are **non-refundable** except where required by law or in cases of clear billing error (see Section 4).
+
+Top-up credits are added to your account balance and do not expire unless we state otherwise in your account.
+
+## 4. When We May Issue a Refund
+
+We may issue refunds, in our discretion or where legally required, for:
 
 - duplicate charges;
-- clear billing errors;
-- failure to provision paid access within a reasonable time;
-- material and persistent service failure not caused by your environment, misuse, or third-party tools under your control; or
-- cancellation rights that apply under mandatory consumer law.
+- clear billing or provisioning errors on our side;
+- failure to deliver paid access within a reasonable time; or
+- other situations where mandatory consumer protection law requires a refund.
 
-## 4. Cases Typically Not Eligible
+Contact us within **14 days** of the charge with your account email, order ID, and a description of the issue.
 
-Refunds will usually not be granted for:
+## 5. When Refunds Are Usually Not Available
 
-- dissatisfaction with creative taste or style preferences alone;
-- outputs requiring manual editing or refinement;
-- failure to use the Service during an active billing period;
-- plan misuse, policy violations, or account suspension due to breach; or
-- issues caused by third-party platform rules, Roblox moderation outcomes, or your own implementation choices.
+Refunds are generally not available for:
 
-## 5. Subscription Cancellation
-
-You may cancel recurring subscriptions at any time through your account settings or the billing portal made available through Lemon Squeezy.
-
-Unless required otherwise by law, cancellation prevents future renewals but does not automatically generate a refund for the current billing period.
+- dissatisfaction with creative style or AI output taste alone;
+- unused time or credits during an active billing period;
+- account suspension or termination for policy violations;
+- issues caused by Roblox moderation, third-party platform rules, or your implementation choices; or
+- failure to use the Service during a paid period you chose not to cancel.
 
 ## 6. How To Request a Refund
 
-Send requests to **[INSERT BILLING EMAIL]** and include:
+Email **support@hudforge.app** with:
 
-- the account email;
-- order ID or subscription ID;
-- purchase date;
-- reason for the request; and
-- any supporting details.
+- your account email;
+- order ID or subscription ID from Lemon Squeezy;
+- purchase date; and
+- reason for the request.
 
-**Placeholder:** Insert target response time and final refund-request window (for example, 14 days from purchase) once the commercial policy is finalized.
+We aim to respond within **5 business days**.
 
 ## 7. Consumer Law
 
-Nothing in this policy limits non-waivable rights you may have under applicable consumer protection law.
-
-If you are entitled to a statutory cooling-off period or mandatory refund right, that right will apply despite anything to the contrary in this policy.
+Nothing in this policy limits non-waivable rights you may have under applicable consumer protection law in your jurisdiction.
 
 ## 8. Contact
 
-**Billing Email:** [INSERT BILLING EMAIL]  
-**Support Email:** [INSERT SUPPORT EMAIL]
+**Billing & support:** support@hudforge.app

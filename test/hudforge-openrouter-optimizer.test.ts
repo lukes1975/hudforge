@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  createOpenRouterGeminiOptimizer,
+  createOpenRouterOptimizer,
   createRepositoryBackedHudforgeService,
   HudforgeServiceError,
   memoryHudforgeRepository,
@@ -35,7 +35,7 @@ const validPayload = {
   },
 }
 
-describe('OpenRouter Gemini optimizer', () => {
+describe('OpenRouter DeepSeek optimizer', () => {
   it('parses model JSON and normalizes it into the required HUDForge spec shape', () => {
     const spec = parseOpenRouterOptimizedSpec(JSON.stringify(validPayload), {
       generation_id: 'gen_openrouter_test',
@@ -71,7 +71,7 @@ describe('OpenRouter Gemini optimizer', () => {
     ).toThrow(HudforgeServiceError)
   })
 
-  it('calls OpenRouter chat completions with Gemini 2.5 Flash and extracts JSON content', async () => {
+  it('calls OpenRouter chat completions with DeepSeek and a detailed system prompt', async () => {
     const fetchImpl = vi.fn(async () =>
       new Response(
         JSON.stringify({
@@ -81,7 +81,7 @@ describe('OpenRouter Gemini optimizer', () => {
         { status: 200, headers: { 'content-type': 'application/json' } }
       )
     )
-    const optimizer = createOpenRouterGeminiOptimizer({ apiKey: 'test-openrouter-key', fetchImpl })
+    const optimizer = createOpenRouterOptimizer({ apiKey: 'test-openrouter-key', fetchImpl })
 
     const spec = await optimizer({
       generation_id: 'gen_provider',
@@ -100,9 +100,33 @@ describe('OpenRouter Gemini optimizer', () => {
     )
     const calls = fetchImpl.mock.calls as unknown as Array<[string, RequestInit]>
     const body = JSON.parse(calls[0][1].body as string)
-    expect(body.model).toBe('google/gemini-2.5-flash')
+    expect(body.model).toBe('deepseek/deepseek-chat')
     expect(body.response_format).toEqual({ type: 'json_object' })
+    expect(body.messages[0].role).toBe('system')
+    expect(body.messages[0].content.length).toBeGreaterThanOrEqual(800)
+    expect(body.messages[0].content).toContain('Roblox game-world UI')
+    expect(body.messages[0].content).toContain('main_frame')
+    const userPayload = JSON.parse(body.messages[1].content)
+    expect(userPayload.output_skeleton).toBeDefined()
+    expect(userPayload.export_constraints).toContain('HUDForge generates Luau deterministically server-side — do NOT output lua_spec or any Luau code.')
     expect(spec.generation_id).toBe('gen_provider')
+  })
+
+  it('respects OPENROUTER_MODEL override when passed explicitly', async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(validPayload) } }] }), { status: 200 })
+    )
+    const optimizer = createOpenRouterOptimizer({ apiKey: 'test-key', model: 'custom/model-id', fetchImpl })
+    await optimizer({
+      generation_id: 'gen_override',
+      prompt: 'neon hud',
+      ui_type: 'hud',
+      style: 'neon',
+      user_settings: { default_export_format: 'zip', mobile_first: true, default_ui_type: 'hud', default_style: 'neon', save_history: true },
+    })
+    const calls = fetchImpl.mock.calls as unknown as Array<[string, RequestInit]>
+    const body = JSON.parse(calls[0][1].body as string)
+    expect(body.model).toBe('custom/model-id')
   })
 
   it('lets the generation service use an injected real optimizer provider', async () => {

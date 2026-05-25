@@ -6,7 +6,6 @@ describe('HUDForge durable analytics summary', () => {
   it('summarizes activation, export, credits, failures, and paid conversion from hudforge tables', () => {
     const now = new Date('2026-05-23T12:00:00.000Z')
     const rows: HudforgeAnalyticsRows = {
-      waitlist: [{ id: 'w1', created_at: '2026-05-22T10:00:00.000Z' }, { id: 'w2', created_at: '2026-05-23T10:00:00.000Z' }],
       profiles: [{ user_id: 'u1', created_at: '2026-05-23T09:00:00.000Z' }, { user_id: 'u2', created_at: '2026-05-23T10:00:00.000Z' }],
       generations: [
         { id: 'g1', user_id: 'u1', status: 'exported', created_at: '2026-05-23T09:10:00.000Z', updated_at: '2026-05-23T09:30:00.000Z' },
@@ -30,8 +29,7 @@ describe('HUDForge durable analytics summary', () => {
     const summary = buildHudforgeAnalyticsSummary(rows, { now, windowDays: 7 })
 
     expect(summary.funnel).toEqual([
-      { stage: 'waitlist', count: 2, conversion_rate: null },
-      { stage: 'signed_up', count: 2, conversion_rate: 1 },
+      { stage: 'signed_up', count: 2, conversion_rate: null },
       { stage: 'generated', count: 2, conversion_rate: 1 },
       { stage: 'exported', count: 1, conversion_rate: 0.5 },
       { stage: 'paid', count: 1, conversion_rate: 1 },

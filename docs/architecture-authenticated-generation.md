@@ -4,19 +4,23 @@ HUDForge's authenticated app is centered on the Roblox UI generation loop: promp
 
 ## Routes
 
-Public marketing routes stay public. Clerk proxy protection covers `/dashboard`, `/generate`, `/projects`, `/settings`, `/billing`, and the authenticated generation/support APIs.
+Public marketing routes stay public. Clerk proxy protection covers `/dashboard`, `/projects`, `/settings`, `/billing`, and the authenticated generation/support APIs.
 
-The primary product route is `/generate`. `/dashboard` points users into that loop, while `/projects`, `/settings`, and `/billing` support history, preferences, and paid-conversion readiness.
+The primary product surface is `/dashboard`. Legacy `/generate` redirects to `/dashboard`. `/projects`, `/settings`, and `/billing` support history, preferences, and paid-conversion readiness.
 
 ## APIs
 
 - `POST /api/generate/optimize` creates a deterministic Roblox UI layout spec from a prompt.
-- `POST /api/generate/assets` debits credits and calls FAL for the fixed 5-asset bundle.
+- `POST /api/generate/assets` debits credits and submits FAL jobs for the fixed 5-asset bundle.
+- `POST /api/generate/assets/poll` polls pending FAL jobs once per request (client orchestrates retries).
+- `GET /api/generate/assets/status` returns durable generation progress from the repository.
 - `POST /api/generate/export` creates a downloadable ZIP export package.
 - `GET /api/generations` returns persisted generation history for the signed-in user when Supabase is configured.
 - `POST /api/usage/event` records typed usage events through the repository layer.
 - `GET+POST /api/settings` returns and updates generation defaults through the repository layer.
 - `GET /api/billing/status` returns Lemon Squeezy-ready mock billing status.
+
+Legacy public Replicate routes (`POST /api/generate`, `GET /api/generate/[id]`) have been removed.
 
 ## Shared Types
 
@@ -53,9 +57,9 @@ Cost controls are enforced before provider calls:
 
 ## Provider Strategy
 
-Prompt/spec generation still has deterministic local structure while OpenRouter/Gemini integration is wired as the next provider layer. Asset generation is no longer silently mocked in the authenticated flow:
+Prompt/spec generation uses OpenRouter (Gemini 2.5 Flash) when configured, with deterministic local structure as fallback. Asset generation is no longer silently mocked in the authenticated flow:
 
-- `OPENROUTER_API_KEY` + `OPENROUTER_MODEL=google/gemini-2.5-flash` will enable the real prompt optimizer path next.
+- `OPENROUTER_API_KEY` + `OPENROUTER_MODEL=google/gemini-2.5-flash` enables the real prompt optimizer path.
 - `GEMINI_API_KEY` can also enable direct Gemini optimizer work.
 - `FAL_KEY` is required for `/api/generate/assets`; missing keys return a visible `fal_not_configured` error.
 - Lemon Squeezy checkout route creates paid checkout sessions when env vars are configured.

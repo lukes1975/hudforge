@@ -1,5 +1,4 @@
-import type { GenerationStatus } from './generation'
-import { hudforgeStyles, hudforgeUiTypes } from './hudforge-generation'
+import { hudforgeStyles, hudforgeUiTypes, type GenerationStatus } from './hudforge-generation'
 import { analyzeRobloxPrompt } from './prompts'
 
 export const generatorSamplePrompts = [
@@ -26,7 +25,7 @@ export const generationStyleOptions = [
   { label: 'Premium', value: 'premium' },
 ] as const satisfies ReadonlyArray<{ label: string; value: (typeof hudforgeStyles)[number] }>
 
-const TERMINAL_STATUSES: GenerationStatus[] = ['succeeded', 'failed', 'canceled']
+const TERMINAL_STATUSES: GenerationStatus[] = ['exported', 'failed']
 
 export function isTerminalGenerationStatus(status: GenerationStatus) {
   return TERMINAL_STATUSES.includes(status)

@@ -1,119 +1,128 @@
 # HUDForge
 
-Roblox UI workflow platform. Generate structured UI specs, real asset bundles, browser previews, deterministic Luau, and downloadable ZIP exports from simple prompts.
+Roblox UI workflow platform. Generate structured UI specs, PNG asset bundles, browser previews, deterministic Luau, and downloadable ZIP exports from simple prompts.
 
 ## Setup
 
 ```bash
-# Install dependencies
 npm install
-
-# Run development server
 npm run dev
-
-# Build for production
-npm run build
 ```
 
 ## Environment Variables
 
-Create `.env.local`:
+Copy `.env.local.example` to `.env.local` and fill in values for the providers you want live locally. The authenticated generation pipeline runs in mock-safe mode when provider keys are missing.
+
+### Clerk (auth)
 
 ```env
-# Supabase (for waitlist)
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-
-# Replicate (for image generation)
-REPLICATE_API_TOKEN=your_replicate_token
-
-# Clerk (for auth)
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-CLERK_SECRET_KEY=your_clerk_secret_key
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
 NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-
-# Lemon Squeezy (for payments)
-LEMON_SQUEEZY_API_KEY=your_lemon_squeezy_key
-LEMON_SQUEEZY_STORE_ID=your_store_id
 ```
 
-See `.env.local.example` for full list.
+### Supabase (authenticated persistence)
 
-## Marketing Route Map
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+```
 
-The public marketing frontend is a multi-page App Router site backed by typed local content in `lib/marketing-content.ts`.
+Generation data, credits, subscriptions, and usage events persist through the service-role repository in `lib/hudforge-generation.ts`. A public anon key is not required for the current app runtime.
 
-- `/` - home
-- `/templates` and `/templates/[id]` - static template gallery and details
-- `/how-it-works` - Roblox UI workflow overview
-- `/pricing` - beta pricing and FAQs
-- `/blog` and `/blog/[slug]` - local blog index and article pages
-- `/documentation` - quick-start documentation landing
-- `/contact` - contact channels and waitlist CTA
+### Generation providers
 
-The waitlist UI posts to the existing `app/api/waitlist/route.ts` endpoint. Template, blog, pricing, docs, nav, contact, and image prompt content is currently local typed data so the frontend can ship without adding CMS or backend complexity.
+```env
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=deepseek/deepseek-chat
+FAL_KEY=
+FAL_MODEL=fal-ai/flux/dev
+NEXT_PUBLIC_SITE_URL=https://www.hudforge.app
+```
 
-## Authenticated Generation Foundation
+- **OpenRouter / DeepSeek** — prompt optimization into structured Roblox UI specs
+- **FAL** — transparent PNG asset generation for the authenticated pipeline
 
-Protected Clerk routes:
+### Lemon Squeezy (billing)
 
-- `/dashboard` - generation-focused activation dashboard
-- `/generate` - primary prompt to preview to export workflow
-- `/projects` - generation history surface
-- `/settings` - generation defaults
-- `/billing` - mock-safe billing readiness
+```env
+LEMON_SQUEEZY_API_KEY=
+LEMON_SQUEEZY_STORE_ID=
+LEMON_SQUEEZY_STARTER_VARIANT_ID=
+LEMON_SQUEEZY_PRO_VARIANT_ID=
+LEMON_SQUEEZY_DEV_VARIANT_ID=
+LEMON_SQUEEZY_TOPUP_250_VARIANT_ID=
+LEMON_SQUEEZY_TOPUP_1000_VARIANT_ID=
+LEMON_SQUEEZY_TOPUP_3000_VARIANT_ID=
+LEMON_SQUEEZY_WEBHOOK_SECRET=
+```
 
-Generation APIs:
+### Sentry (production error monitoring)
+
+```env
+SENTRY_DSN=
+NEXT_PUBLIC_SENTRY_DSN=
+```
+
+Optional for local source map uploads during build:
+
+```env
+SENTRY_ORG=
+SENTRY_PROJECT=hudforge
+```
+
+## Authenticated app routes
+
+- `/dashboard` — generation workbench (legacy `/generate` redirects here)
+- `/projects` — generation history
+- `/settings` — generation defaults
+- `/billing` — plans, credit top-ups, subscription portal
+
+## Generation APIs
 
 - `POST /api/generate/optimize`
 - `POST /api/generate/assets`
+- `POST /api/generate/assets/poll`
+- `GET /api/generate/assets/status`
 - `POST /api/generate/export`
 - `GET /api/generations`
-- `POST /api/usage/event`
-- `GET /api/settings`
-- `POST /api/settings`
+- `GET /api/settings` / `POST /api/settings`
 - `GET /api/billing/status`
+- `POST /api/billing/checkout`
+- `POST /api/billing/topup`
+- `GET /api/billing/portal`
+- `POST /api/billing/webhook`
 
-The authenticated flow supports local deterministic development while production provider paths use real OpenRouter/FAL when configured. Export returns a downloadable ZIP package containing `manifest.json`, `layout.json`, `code/MainUI.lua`, `assets/assets.json`, and `README_IMPORT.md`.
+Export returns a downloadable ZIP with `manifest.json`, `layout.json`, `code/MainUI.lua`, `assets/assets.json`, and `README_IMPORT.md`.
 
-## Brand + Distribution Assets
+## Marketing routes
 
-Launch/distribution scaffolding now lives in-repo:
+Public marketing pages use typed local content in `lib/marketing-content.ts`:
 
-- `assets/brand-guidelines.md` — logo, palette, typography, voice, usage rules
-- `public/brand/` — favicons, app icons, emblem, wordmark, square avatar
-- `public/generated/brand/` — launch banners, social headers, template header art
-- `public/press-kit/` — downloadable press ZIP and one-page overview PDF
-- `emails/` — branded HTML email templates
-- `marketing/social-captions/` — bios, launch posts, content calendar, forum copy
-- `docs/distribution-setup.md` — manual platform activation instructions
-- `docs/distribution-strategy.md` — channel priorities and launch KPI plan
+- `/`, `/templates`, `/how-it-works`, `/pricing`, `/blog`, `/documentation`, `/contact`, `/legal`
+
+Primary CTAs route to `/sign-up`. Signed-in users work from `/dashboard`.
 
 ## Stack
 
 - **Framework:** Next.js 16 (App Router)
 - **Styling:** Tailwind CSS v4
 - **Auth:** Clerk
-- **Database:** Supabase
+- **Database:** Supabase (service role)
 - **Payments:** Lemon Squeezy
-- **AI:** Deterministic mock foundation for authenticated generation; Replicate remains for the legacy public API route
+- **AI:** OpenRouter (DeepSeek optimizer) + FAL (PNG assets)
+- **Monitoring:** Sentry
 - **Deployment:** Vercel
 
 ## Development
 
 ```bash
-# Start dev server
 npm run dev
-
-# Type checking
 npm run type-check
-
-# Linting
 npm run lint
-
-# Format code
-npm run format
+npm run test:run
+npm run build
 ```
 
 ## Deployment
@@ -124,7 +133,7 @@ Deploy to Vercel:
 vercel
 ```
 
-Or push to GitHub and connect via Vercel dashboard.
+Or push to GitHub and connect via the Vercel dashboard. Set production env vars from the checklist in `docs/ops/paid-launch-fix-prompts.md` or your deployment runbook.
 
 ## License
 

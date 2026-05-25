@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import Link from 'next/link'
 import { HeroVisualCluster } from '@/components/HeroVisualCluster'
 
 const heroTags = ['Private beta', 'Roblox-native workflow', 'Generated HUD systems', 'Studio-ready export']
@@ -47,9 +48,9 @@ export function Hero() {
             </div>
 
             <div className="hero-cta-row">
-              <a href="#waitlist" className="primary-cta px-6 text-base font-semibold">
-                Join Private Beta
-              </a>
+              <Link href="/sign-up" className="primary-cta px-6 text-base font-semibold">
+                Get started
+              </Link>
               <a href="#showcase" className="secondary-cta px-6 text-base font-semibold">
                 See Generated UI
               </a>

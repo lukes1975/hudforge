@@ -38,7 +38,7 @@ describe('HUDForge provider cost tracking and rate limits', () => {
     const usage = await repo.listUsageEvents(userId)
     const optimizeCostEvent = usage.find((event) => event.name === 'prompt_optimized')
     const assetCostEvent = usage.find((event) => event.name === 'assets_generated')
-    expect(optimizeCostEvent?.metadata).toMatchObject({ provider: 'openrouter_or_mock', cost_stage: 'optimizer', estimated_cost_usd: 0.001 })
+    expect(optimizeCostEvent?.metadata).toMatchObject({ provider: 'mock', cost_stage: 'optimizer', estimated_cost_usd: 0.001 })
     expect(assetCostEvent?.metadata).toMatchObject({ provider: 'fal', cost_stage: 'asset_bundle', estimated_cost_usd: 0.125, asset_count: 5 })
 
     const ledger = await repo.listCreditLedger(userId)

@@ -1,11 +1,15 @@
 import { hudforgeError, hudforgeJson, requireHudforgeUser } from '@/lib/hudforge-api'
-import { createOptimizedGeneration } from '@/lib/hudforge-generation'
+import { createOptimizedGeneration, type OptimizeGenerationInput } from '@/lib/hudforge-generation'
 
 export async function POST(request: Request) {
   try {
     const userId = await requireHudforgeUser()
-    const body = await request.json()
-    const generation = await createOptimizedGeneration(userId, body)
+    const body = (await request.json()) as OptimizeGenerationInput
+    const idempotencyKey = request.headers.get('x-idempotency-key') ?? undefined
+    const generation = await createOptimizedGeneration(userId, {
+      ...body,
+      idempotency_key: idempotencyKey ?? body.idempotency_key,
+    })
     return hudforgeJson(
       {
         generation,

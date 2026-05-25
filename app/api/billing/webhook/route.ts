@@ -8,6 +8,9 @@ export async function POST(request: Request) {
     const result = await handleLemonSqueezyWebhook(supabaseHudforgeRepository(), body, signature)
     return hudforgeJson({ webhook: result })
   } catch (error) {
-    return hudforgeError(error, 'Failed to process Lemon Squeezy webhook')
+    return hudforgeError(error, 'Failed to process Lemon Squeezy webhook', {
+      tags: { route: 'billing/webhook' },
+      level: 'error',
+    })
   }
 }

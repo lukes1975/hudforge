@@ -5,7 +5,6 @@ import { BlogCard } from '@/components/marketing/BlogCard'
 import { CTASection } from '@/components/marketing/CTASection'
 import { MarketingShell } from '@/components/marketing/MarketingShell'
 import { TemplateCard } from '@/components/marketing/TemplateCard'
-import { WaitlistForm } from '@/components/marketing/WaitlistForm'
 import { blogPosts, features, pricingPlans, templates, workflowSteps } from '@/lib/marketing-content'
 
 export const metadata: Metadata = {
@@ -26,8 +25,8 @@ export default function Home() {
                 HUDForge turns cyber-fantasy direction, Roblox UI patterns, and export notes into a faster workflow for builders who care about game feel.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link href="/generate" className="forge-button forge-button--primary">
-                  Generate UI
+                <Link href="/sign-up" className="forge-button forge-button--primary">
+                  Get started
                 </Link>
                 <Link href="/templates" className="forge-button forge-button--secondary">
                   Explore Templates
@@ -147,14 +146,25 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="px-5 py-14 sm:px-6 lg:px-8">
-          <div className="section-shell rune-card grid gap-8 p-6 sm:p-8 lg:grid-cols-[1fr_0.85fr] lg:p-10">
-            <div>
-              <p className="section-kicker">Founding access</p>
-              <h2 className="section-title mt-4 text-4xl font-semibold text-white sm:text-5xl">Reserve your place in the forge queue.</h2>
-              <p className="mt-5 max-w-2xl text-base leading-7 text-slate-400">The same waitlist API powers this redesigned frontend, preserving the existing Supabase-backed capture path.</p>
+        <section className="px-5 pb-8 sm:px-6 lg:px-8">
+          <div className="section-shell">
+            <div className="rune-card flex flex-col gap-4 border-white/10 bg-white/[0.03] p-5 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm leading-7 text-slate-400">HUDForge is a paid SaaS for Roblox UI generation. Review our policies before creating an account.</p>
+              <nav aria-label="Legal links" className="flex flex-wrap gap-4 text-sm">
+                <Link href="/legal/terms" className="premium-link">
+                  Terms
+                </Link>
+                <Link href="/legal/privacy" className="premium-link">
+                  Privacy
+                </Link>
+                <Link href="/legal/refunds" className="premium-link">
+                  Refunds
+                </Link>
+                <Link href="/legal/ai-disclaimer" className="premium-link">
+                  AI Disclaimer
+                </Link>
+              </nav>
             </div>
-            <WaitlistForm source="home_page" />
           </div>
         </section>
 

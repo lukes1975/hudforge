@@ -31,7 +31,7 @@ export type ExportFormat = 'zip' | 'lua' | 'manifest' | 'json_payload'
 
 export interface UserProfile { id: string; email?: string; name?: string; created_at?: string }
 export interface UserSettings { default_export_format: 'zip' | 'lua' | 'manifest'; mobile_first: boolean; default_ui_type: UiType; default_style: GenerationStyle; save_history: boolean }
-export interface ProviderStatus { llm: 'openrouter_gemini' | 'gemini' | 'mock'; assets: AssetProvider | 'missing_fal_key'; billing: 'lemon_squeezy' | 'mock' }
+export interface ProviderStatus { llm: 'openrouter_deepseek' | 'mock'; assets: AssetProvider | 'missing_fal_key'; billing: 'lemon_squeezy' | 'mock' }
 export interface LayoutVector { x_scale: number; x_offset: number; y_scale: number; y_offset: number }
 export interface LayoutNode { id: string; type: RobloxInstanceClass; name: string; asset_ref: string | null; position: LayoutVector; size: LayoutVector; z_index: number; text: string | null; children: LayoutNode[] }
 export interface LayoutSpec { canvas: { target: 'mobile' | 'desktop'; width: number; height: number; safe_area: boolean }; nodes: LayoutNode[] }
@@ -39,25 +39,29 @@ export interface ImagePromptSpec { prompt: string; negative_prompt: string; tran
 export interface LuaInstanceSpec { id: string; class_name: RobloxInstanceClass; name: string; parent: string; asset_ref: string | null; text: string | null; position: LayoutVector; size: LayoutVector; z_index: number }
 export interface LuaSpec { screen_gui_name: string; root_instances: LuaInstanceSpec[] }
 export interface OptimizedGenerationSpec { generation_id: string; ui_type: UiType; style: GenerationStyle; intent_summary: string; asset_list: ['main_frame', 'primary_button', 'secondary_button', 'currency_icon', 'background_panel']; layout_spec: LayoutSpec; image_prompts: Record<string, ImagePromptSpec>; lua_spec: LuaSpec; constraints: { mobile_friendly: boolean; roblox_native: boolean; transparent_assets_preferred: boolean; deterministic_export_required: boolean } }
-export interface GeneratedAsset { id: string; name: string; type: AssetUse; url: string; width: number; height: number; transparent: boolean; provider: AssetProvider; prompt_used: string }
+export interface GeneratedAsset { id: string; name: string; type: AssetUse; url: string; width: number; height: number; transparent: boolean; provider: AssetProvider; prompt_used: string; content_type?: 'image/png' }
 export interface FalAssetJob { name: string; request_id?: string; response_url: string; status: 'pending' | 'completed' | 'failed'; error?: string }
-export interface AssetBundle { generation_id: string; status: 'generating' | 'assets_ready' | 'failed'; assets: GeneratedAsset[]; errors: string[]; jobs?: FalAssetJob[]; credits_refunded?: boolean }
+export type QueueTier = 'standard' | 'priority'
+export interface AssetBundle { generation_id: string; status: 'generating' | 'assets_ready' | 'failed'; assets: GeneratedAsset[]; errors: string[]; jobs?: FalAssetJob[]; credits_refunded?: boolean; queue_tier?: QueueTier }
 export interface AssetPollResult { completed: GeneratedAsset[]; pending: FalAssetJob[]; failed: Array<{ name: string; error: string }>; done: boolean; generation: Generation }
 export interface ExportPackageFile { path: 'manifest.json' | 'layout.json' | 'code/MainUI.lua' | 'assets/assets.json' | 'README_IMPORT.md'; content_type: 'application/json' | 'text/x-lua' | 'text/markdown'; content?: string }
 export interface ExportPackageManifest { generation_id: string; format: 'zip' | 'json_payload'; files: ExportPackageFile[] }
 export interface ExportResponse { generation_id: string; status: 'exported'; package: ExportPackageManifest; download_url: string | null; limitations: string[] }
 export interface ExportPackagePayload extends ExportResponse { filename: string; files: Required<ExportPackageFile>[]; zip_base64?: string; byte_size?: number }
-export type BillingPlanId = 'free' | 'starter' | 'pro'
-export interface BillingPlan { id: BillingPlanId; name: string; price_gbp_monthly: number; credits: number; cta: string }
+export type BillingPlanId = 'free' | 'starter' | 'pro' | 'dev'
+export interface BillingPlanEntitlements { queue: 'standard' | 'priority'; style_tier: 'basic' | 'premium'; max_saved_projects: number; png_export: boolean; luau_export: 'basic' | 'full' }
+export interface BillingPlan { id: BillingPlanId; name: string; price_usd_monthly: number; credits: number; cta: string; popular?: boolean; entitlements?: BillingPlanEntitlements }
+export type CreditTopUpId = 'topup_250' | 'topup_1000' | 'topup_3000'
+export interface CreditTopUpProduct { id: CreditTopUpId; name: string; price_usd: number; credits: number }
 export type BillingState = 'free' | 'trial' | 'active_paid' | 'past_due' | 'canceled' | 'unknown_mock'
-export interface BillingStatus { state: BillingState; current_plan: BillingPlan; credits_included: number; credits_used: number; credits_remaining: number; checkout_ready: boolean; customer_portal_ready: boolean; provider: 'lemon_squeezy' | 'mock' }
+export interface BillingStatus { state: BillingState; current_plan: BillingPlan; credits_included: number; credits_used: number; credits_remaining: number; checkout_ready: boolean; customer_portal_ready: boolean; provider: 'lemon_squeezy' | 'mock'; topups: CreditTopUpProduct[] }
 export interface HudforgeSubscription { id: string; user_id: string; state: BillingState; lemon_squeezy_customer_id?: string | null; lemon_squeezy_subscription_id?: string | null; lemon_squeezy_variant_id?: string | null; plan_id: BillingPlanId; current_period_start?: string | null; current_period_end?: string | null; cancel_at_period_end: boolean; metadata?: Record<string, unknown>; created_at: string; updated_at: string }
-export type UsageEventName = 'generation_started' | 'prompt_optimized' | 'assets_generated' | 'preview_loaded' | 'export_clicked' | 'generation_failed' | 'settings_updated' | 'credit_debited' | 'credit_refunded' | 'generation_rate_limited'
+export type UsageEventName = 'generation_started' | 'prompt_optimized' | 'assets_generated' | 'preview_loaded' | 'export_clicked' | 'generation_failed' | 'settings_updated' | 'credit_debited' | 'credit_refunded' | 'generation_rate_limited' | 'subscription_synced'
 export interface UsageEvent { name: UsageEventName; generation_id?: string; generationId?: string; metadata?: Record<string, string | number | boolean> }
 export interface UsageEventRecord extends UsageEvent { user_id: string; created_at: string }
 export type HudforgeUsageEvent = UsageEvent
-export interface Generation { id: string; user_id: string; title: string; prompt: string; ui_type: UiType; style: GenerationStyle; status: GenerationStatus; created_at: string; updated_at: string; optimized_spec?: OptimizedGenerationSpec; asset_bundle?: AssetBundle; export_package?: ExportPackagePayload; error?: string }
-export interface OptimizeGenerationInput { prompt: string; ui_type?: string; uiType?: string; style?: string; user_settings?: Partial<UserSettings> }
+export interface Generation { id: string; user_id: string; title: string; prompt: string; ui_type: UiType; style: GenerationStyle; status: GenerationStatus; created_at: string; updated_at: string; optimized_spec?: OptimizedGenerationSpec; asset_bundle?: AssetBundle; export_package?: ExportPackagePayload; error?: string; metadata?: Record<string, unknown> }
+export interface OptimizeGenerationInput { prompt: string; ui_type?: string; uiType?: string; style?: string; user_settings?: Partial<UserSettings>; idempotency_key?: string }
 export interface AssetGenerationInput { generation_id?: string; generationId?: string }
 export interface ExportGenerationInput { generation_id?: string; generationId?: string }
 export interface CreditLedgerEntry { id: string; user_id: string; delta: number; balance_after: number; reason: 'initial_free_grant' | 'generation_optimize' | 'asset_generation' | 'asset_generation_refund' | 'manual_adjustment'; generation_id?: string | null; metadata?: Record<string, unknown>; created_at: string }
@@ -68,16 +72,25 @@ const ASSET_CREDIT_COST = 5
 const OPTIMIZER_ESTIMATED_COST_USD = 0.001
 const FAL_ASSET_ESTIMATED_COST_USD = 0.025
 const FAL_BUNDLE_ASSET_COUNT = 5
-const DEFAULT_RATE_LIMITS: RateLimitPolicy = { optimizePerHour: 12, assetBundlesPerHour: 4 }
+const STANDARD_QUEUE_SUBMIT_GAP_MS = 200
+export const DEFAULT_RATE_LIMITS: RateLimitPolicy = { optimizePerHour: 12, assetBundlesPerHour: 4 }
+export const PRIORITY_RATE_LIMITS: RateLimitPolicy = { optimizePerHour: 30, assetBundlesPerHour: 12 }
 
 export interface RateLimitPolicy { optimizePerHour: number; assetBundlesPerHour: number }
 
 const defaultSettings: UserSettings = { default_export_format: 'zip', mobile_first: true, default_ui_type: 'shop_ui', default_style: 'neon', save_history: true }
 const billingPlans: Record<BillingPlanId, BillingPlan> = {
-  free: { id: 'free', name: 'Free', price_gbp_monthly: 0, credits: INITIAL_FREE_CREDITS, cta: 'Current plan' },
-  starter: { id: 'starter', name: 'Starter', price_gbp_monthly: 10, credits: 150, cta: 'Current plan' },
-  pro: { id: 'pro', name: 'Pro', price_gbp_monthly: 30, credits: 600, cta: 'Current plan' },
+  free: { id: 'free', name: 'Free', price_usd_monthly: 0, credits: INITIAL_FREE_CREDITS, cta: 'Current plan' },
+  starter: { id: 'starter', name: 'Starter', price_usd_monthly: 19, credits: 250, cta: 'Upgrade', entitlements: { queue: 'standard', style_tier: 'basic', max_saved_projects: 10, png_export: true, luau_export: 'basic' } },
+  pro: { id: 'pro', name: 'Pro', price_usd_monthly: 49, credits: 1000, cta: 'Upgrade', popular: true, entitlements: { queue: 'priority', style_tier: 'premium', max_saved_projects: 100, png_export: true, luau_export: 'full' } },
+  dev: { id: 'dev', name: 'Dev', price_usd_monthly: 200, credits: 2500, cta: 'Upgrade', entitlements: { queue: 'priority', style_tier: 'premium', max_saved_projects: 100, png_export: true, luau_export: 'full' } },
 }
+export const creditTopUps: CreditTopUpProduct[] = [
+  { id: 'topup_250', name: '250 credits', price_usd: 9, credits: 250 },
+  { id: 'topup_1000', name: '1,000 credits', price_usd: 29, credits: 1000 },
+  { id: 'topup_3000', name: '3,000 credits', price_usd: 69, credits: 3000 },
+]
+export { billingPlans }
 const freePlan = billingPlans.free
 
 type FalAssetProvider = (spec: OptimizedGenerationSpec) => Promise<AssetBundle>
@@ -101,6 +114,8 @@ export interface HudforgeRepository {
   atomicDebit?(userId: string, amount: number, reason: CreditLedgerEntry['reason'], generationId?: string, metadata?: Record<string, unknown>): Promise<CreditLedgerEntry>
   listCreditLedger(userId: string): Promise<CreditLedgerEntry[]>
   listUsageEvents(userId: string): Promise<UsageEventRecord[]>
+  countRecentUsageEvents(userId: string, eventName: UsageEventName, sinceIso: string): Promise<number>
+  findGenerationByIdempotencyKey(userId: string, idempotencyKey: string): Promise<Generation | null>
   upsertSubscription(subscription: HudforgeSubscription): Promise<HudforgeSubscription>
   listSubscriptions(userId: string): Promise<HudforgeSubscription[]>
 }
@@ -108,10 +123,17 @@ export interface HudforgeRepository {
 export function createRepositoryBackedHudforgeService(repository: HudforgeRepository, deps: { assetProvider?: FalAssetProvider; optimizerProvider?: OptimizerProvider; rateLimits?: Partial<RateLimitPolicy> } = {}) {
   const assetProvider = deps.assetProvider ?? generateFalAssetsForSpec
   const optimizerProvider = deps.optimizerProvider ?? createDefaultOptimizerProvider()
-  const rateLimits: RateLimitPolicy = { ...DEFAULT_RATE_LIMITS, ...(deps.rateLimits ?? {}) }
+  const rateLimitOverride = deps.rateLimits
 
   return {
     async createOptimizedGeneration(userId: string, input: OptimizeGenerationInput): Promise<Generation> {
+      const idempotencyKey = typeof input.idempotency_key === 'string' ? input.idempotency_key.trim() : ''
+      if (idempotencyKey) {
+        const existing = await repository.findGenerationByIdempotencyKey(userId, idempotencyKey)
+        if (existing) return existing
+      }
+
+      const rateLimits = await resolveRateLimits(repository, userId, rateLimitOverride)
       await enforceRateLimit(repository, userId, 'optimizer', rateLimits.optimizePerHour)
       await ensureCredits(repository, userId)
       await debitCredits(repository, userId, OPTIMIZE_CREDIT_COST, 'generation_optimize', undefined, optimizerCostMetadata())
@@ -119,7 +141,19 @@ export function createRepositoryBackedHudforgeService(repository: HudforgeReposi
       const now = new Date().toISOString()
       const id = `gen_${stableId(`${userId}:${prompt}:${ui_type}:${style}:${now}`).slice(0, 12)}`
       const optimized_spec = await optimizerProvider({ generation_id: id, prompt, ui_type, style, user_settings })
-      const generation: Generation = { id, user_id: userId, title: buildTitle(prompt, ui_type), prompt, ui_type, style, status: 'optimized', created_at: now, updated_at: now, optimized_spec }
+      const generation: Generation = {
+        id,
+        user_id: userId,
+        title: buildTitle(prompt, ui_type),
+        prompt,
+        ui_type,
+        style,
+        status: 'optimized',
+        created_at: now,
+        updated_at: now,
+        optimized_spec,
+        metadata: idempotencyKey ? { idempotency_key: idempotencyKey } : undefined,
+      }
       await repository.upsertGeneration(generation)
       await repository.recordUsageEvent(userId, { name: 'generation_started', generation_id: id, metadata: { stage: 'optimizer' } })
       await repository.recordUsageEvent(userId, { name: 'prompt_optimized', generation_id: id, metadata: optimizerCostMetadata() })
@@ -127,6 +161,7 @@ export function createRepositoryBackedHudforgeService(repository: HudforgeReposi
     },
 
     async createAssetsForGeneration(userId: string, generationId: string): Promise<Generation> {
+      const rateLimits = await resolveRateLimits(repository, userId, rateLimitOverride)
       await enforceRateLimit(repository, userId, 'asset_bundle', rateLimits.assetBundlesPerHour)
       await ensureCredits(repository, userId)
       await debitCredits(repository, userId, ASSET_CREDIT_COST, 'asset_generation', generationId, assetCostMetadata())
@@ -152,15 +187,20 @@ export function createRepositoryBackedHudforgeService(repository: HudforgeReposi
       if (generation.status === 'assets_ready' || generation.status === 'preview_ready' || generation.status === 'exported') return generation
       if (generation.status === 'generating_assets' && generation.asset_bundle?.jobs?.some((job) => job.status === 'pending')) return generation
 
-      await enforceRateLimit(repository, userId, 'asset_bundle', rateLimits.assetBundlesPerHour)
-      await ensureCredits(repository, userId)
-      await debitCredits(repository, userId, ASSET_CREDIT_COST, 'asset_generation', generationId, assetCostMetadata())
+      const alreadyDebited = await hasAssetGenerationDebit(repository, userId, generationId)
+      if (!alreadyDebited) {
+        const rateLimits = await resolveRateLimits(repository, userId, rateLimitOverride)
+        await enforceRateLimit(repository, userId, 'asset_bundle', rateLimits.assetBundlesPerHour)
+        await ensureCredits(repository, userId)
+        await debitCredits(repository, userId, ASSET_CREDIT_COST, 'asset_generation', generationId, assetCostMetadata())
+      }
 
       try {
-        const jobs = await submitAllFalJobs(generation.optimized_spec)
-        const asset_bundle: AssetBundle = { generation_id: generationId, status: 'generating', assets: [], errors: [], jobs }
+        const queueTier = await getQueueTierForUser(repository, userId)
+        const jobs = await submitAllFalJobs(generation.optimized_spec, { queueTier })
+        const asset_bundle: AssetBundle = { generation_id: generationId, status: 'generating', assets: [], errors: [], jobs, queue_tier: queueTier }
         generation = await updateGeneration(repository, generation, { status: 'generating_assets', asset_bundle })
-        await repository.recordUsageEvent(userId, { name: 'generation_started', generation_id: generationId, metadata: { stage: 'assets' } })
+        await repository.recordUsageEvent(userId, { name: 'generation_started', generation_id: generationId, metadata: { stage: 'assets', queue_tier: queueTier } })
         return generation
       } catch (error) {
         await refundAssetCredits(repository, userId, generationId, generation.asset_bundle, error instanceof Error ? error.message : 'asset submit failed')
@@ -284,6 +324,13 @@ export function memoryHudforgeRepository(options: { initialCredits?: number } = 
     async addCreditLedgerEntry(userId, delta, reason, generationId, metadata) { const balanceBefore = ledger.filter((entry) => entry.user_id === userId).reduce((total, entry) => total + entry.delta, 0); const entry: CreditLedgerEntry = { id: `cle_${stableId(`${userId}:${reason}:${Date.now()}:${Math.random()}`).slice(0, 12)}`, user_id: userId, delta, balance_after: balanceBefore + delta, reason, generation_id: generationId ?? null, metadata, created_at: new Date().toISOString() }; ledger.push(entry); return entry },
     async listCreditLedger(userId) { await this.ensureInitialCredits(userId, initialCredits); return ledger.filter((entry) => entry.user_id === userId).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at)) },
     async listUsageEvents(userId) { return usageEvents.filter((event) => event.user_id === userId).sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at)) },
+    async countRecentUsageEvents(userId, eventName, sinceIso) {
+      const since = Date.parse(sinceIso)
+      return usageEvents.filter((event) => event.user_id === userId && event.name === eventName && Date.parse(event.created_at) >= since).length
+    },
+    async findGenerationByIdempotencyKey(userId, idempotencyKey) {
+      return Array.from(generations.values()).find((generation) => generation.user_id === userId && generation.metadata?.idempotency_key === idempotencyKey) ?? null
+    },
     async upsertSubscription(subscription) { subscriptions.set(subscription.id, subscription); return subscription },
     async listSubscriptions(userId) { return Array.from(subscriptions.values()).filter((subscription) => subscription.user_id === userId).sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at)) },
   }
@@ -330,6 +377,18 @@ export function supabaseHudforgeRepository(): HudforgeRepository {
     },
     async listCreditLedger(userId) { await this.ensureInitialCredits(userId, INITIAL_FREE_CREDITS); const supabase = await client(); const { data, error } = await supabase.from('hudforge_credit_ledger').select('*').eq('user_id', userId).order('created_at', { ascending: true }); if (error) throw dbError(error, 'Failed to list credit ledger'); return (data ?? []) as CreditLedgerEntry[] },
     async listUsageEvents(userId) { const supabase = await client(); const { data, error } = await supabase.from('hudforge_usage_events').select('user_id,event_name,generation_id,metadata,created_at').eq('user_id', userId).order('created_at', { ascending: true }); if (error) throw dbError(error, 'Failed to list usage events'); return (data ?? []).map((row: { user_id: string; event_name: UsageEventName; generation_id?: string | null; metadata?: Record<string, string | number | boolean>; created_at: string }) => ({ user_id: row.user_id, name: row.event_name, generation_id: row.generation_id ?? undefined, metadata: row.metadata ?? {}, created_at: row.created_at })) },
+    async countRecentUsageEvents(userId, eventName, sinceIso) {
+      const supabase = await client()
+      const { count, error } = await supabase.from('hudforge_usage_events').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('event_name', eventName).gte('created_at', sinceIso)
+      if (error) throw dbError(error, 'Failed to count usage events')
+      return count ?? 0
+    },
+    async findGenerationByIdempotencyKey(userId, idempotencyKey) {
+      const supabase = await client()
+      const { data, error } = await supabase.from('hudforge_generations').select('*').eq('user_id', userId).eq('metadata->>idempotency_key', idempotencyKey).maybeSingle()
+      if (error) throw dbError(error, 'Failed to find generation by idempotency key')
+      return data ? fromGenerationRow(data) : null
+    },
     async upsertSubscription(subscription) { const supabase = await client(); await ensureProfile(supabase, subscription.user_id); const existing = subscription.lemon_squeezy_subscription_id ? await supabase.from('hudforge_subscriptions').select('id').eq('lemon_squeezy_subscription_id', subscription.lemon_squeezy_subscription_id).maybeSingle() : { data: null, error: null }; if (existing.error) throw dbError(existing.error, 'Failed to inspect subscription'); const row = toSubscriptionRow(subscription); const query = existing.data?.id ? supabase.from('hudforge_subscriptions').update(row).eq('id', existing.data.id).select('*').single() : supabase.from('hudforge_subscriptions').insert(row).select('*').single(); const { data, error } = await query; if (error) throw dbError(error, 'Failed to persist subscription'); return fromSubscriptionRow(data) },
     async listSubscriptions(userId) { const supabase = await client(); const { data, error } = await supabase.from('hudforge_subscriptions').select('*').eq('user_id', userId).order('updated_at', { ascending: false }); if (error) throw dbError(error, 'Failed to list subscriptions'); return (data ?? []).map(fromSubscriptionRow) },
   }
@@ -376,6 +435,7 @@ export const getSettings = (userId: string) => getDefaultService().getSettings(u
 export const updateSettings = (userId: string, input: Partial<UserSettings>) => getDefaultService().updateSettings(userId, input)
 export const recordUsageEvent = (userId: string, event: UsageEvent) => getDefaultService().recordUsageEvent(userId, event)
 export const getBillingStatus = (userId: string) => getDefaultService().getBillingStatus(userId)
+export const getLemonSqueezyCustomerPortalUrlForUser = (userId: string, options?: LemonSqueezyPortalOptions) => getLemonSqueezyCustomerPortalUrl(getDefaultRepository(), userId, options)
 
 export function generateMockAssets(spec: OptimizedGenerationSpec): GeneratedAsset[] { return Object.entries(spec.image_prompts).map(([name, imagePrompt]) => ({ id: `${name}_${stableId(`${spec.generation_id}:${name}`).slice(0, 8)}`, name, type: imagePrompt.intended_use, url: buildMockSvgDataUrl(spec, name, imagePrompt.intended_use), width: imagePrompt.intended_use === 'background' ? 1024 : 512, height: imagePrompt.intended_use === 'background' ? 1024 : 512, transparent: imagePrompt.transparent, provider: 'mock', prompt_used: imagePrompt.prompt })) }
 
@@ -404,33 +464,51 @@ function requireFalKey() {
   return falKey
 }
 
-async function submitAllFalJobs(spec: OptimizedGenerationSpec): Promise<FalAssetJob[]> {
+async function submitSingleFalJob(spec: OptimizedGenerationSpec, name: string, imagePrompt: ImagePromptSpec, falKey: string, model: string, fetchImpl: typeof fetch): Promise<FalAssetJob> {
+  const prompt = buildFalAssetPrompt(spec, name, imagePrompt)
+  const submitResponse = await resilientFetch(
+    `https://queue.fal.run/${model}`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Key ${falKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt,
+        negative_prompt: imagePrompt.negative_prompt,
+        image_size: imagePrompt.intended_use === 'background' ? 'landscape_16_9' : 'square_hd',
+        num_images: 1,
+        output_format: 'png',
+        enable_safety_checker: true,
+      }),
+    },
+    { timeoutMs: 15_000, maxRetries: 1, fetchImpl }
+  )
+  if (!submitResponse.ok) {
+    const body = await safeResponseText(submitResponse)
+    throw new HudforgeServiceError(`fal.ai PNG request failed for ${name} with status ${submitResponse.status}: ${body.slice(0, 180)}`, 502, 'fal_request_failed')
+  }
+  const queuePayload = (await submitResponse.json()) as { request_id?: string; response_url?: string; error?: string }
+  if (queuePayload.error) throw new HudforgeServiceError(`fal.ai rejected ${name}: ${queuePayload.error}`, 502, 'fal_request_failed')
+  if (!queuePayload.response_url) throw new HudforgeServiceError(`fal.ai did not return a response URL for ${name}. Check FAL_KEY and model configuration.`, 502, 'fal_response_url_missing')
+  return { name, request_id: queuePayload.request_id, response_url: queuePayload.response_url, status: 'pending' as const }
+}
+
+export async function submitAllFalJobs(spec: OptimizedGenerationSpec, options: { queueTier?: QueueTier; fetchImpl?: typeof fetch } = {}): Promise<FalAssetJob[]> {
   const falKey = requireFalKey()
   const model = process.env.FAL_MODEL || process.env.FAL_IMAGE_MODEL || 'fal-ai/flux/dev'
-  const jobs = await Promise.all(
-    Object.entries(spec.image_prompts).map(async ([name, imagePrompt]) => {
-      const prompt = buildFalAssetPrompt(spec, name, imagePrompt)
-      const submitResponse = await resilientFetch(
-        `https://queue.fal.run/${model}`,
-        {
-          method: 'POST',
-          headers: { Authorization: `Key ${falKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt,
-            negative_prompt: imagePrompt.negative_prompt,
-            image_size: imagePrompt.intended_use === 'background' ? 'landscape_16_9' : 'square_hd',
-            num_images: 1,
-            enable_safety_checker: true,
-          }),
-        },
-        { timeoutMs: 15_000, maxRetries: 1 }
-      )
-      if (!submitResponse.ok) throw new HudforgeServiceError(`fal.ai request failed for ${name} with status ${submitResponse.status}`, 502, 'fal_request_failed')
-      const queuePayload = (await submitResponse.json()) as { request_id?: string; response_url?: string; error?: string }
-      if (!queuePayload.response_url) throw new HudforgeServiceError(`fal.ai did not return a response URL for ${name}`, 502, 'fal_response_url_missing')
-      return { name, request_id: queuePayload.request_id, response_url: queuePayload.response_url, status: 'pending' as const }
-    })
-  )
+  const fetchImpl = options.fetchImpl ?? fetch
+  const queueTier = options.queueTier ?? 'standard'
+  const entries = Object.entries(spec.image_prompts)
+
+  if (queueTier === 'priority') {
+    return Promise.all(entries.map(([name, imagePrompt]) => submitSingleFalJob(spec, name, imagePrompt, falKey, model, fetchImpl)))
+  }
+
+  const jobs: FalAssetJob[] = []
+  for (let index = 0; index < entries.length; index += 1) {
+    const [name, imagePrompt] = entries[index]
+    if (index > 0) await new Promise((resolve) => setTimeout(resolve, STANDARD_QUEUE_SUBMIT_GAP_MS))
+    jobs.push(await submitSingleFalJob(spec, name, imagePrompt, falKey, model, fetchImpl))
+  }
   return jobs
 }
 
@@ -454,11 +532,19 @@ async function pollFalJobOnce(job: FalAssetJob, spec: OptimizedGenerationSpec, f
   }
 }
 
-function parseFalResultToAsset(result: { images?: Array<{ url?: string }>; image?: { url?: string }; data?: { images?: Array<{ url?: string }> } }, spec: OptimizedGenerationSpec, name: string): GeneratedAsset | null {
+function isLikelyPngAssetUrl(url: string) {
+  const lower = url.toLowerCase()
+  return lower.includes('.png') || lower.includes('image/png') || lower.includes('format=png') || lower.includes('fal.media') || lower.includes('fal.run')
+}
+
+export function parseFalResultToAsset(result: { images?: Array<{ url?: string; content_type?: string }>; image?: { url?: string; content_type?: string }; data?: { images?: Array<{ url?: string; content_type?: string }> } }, spec: OptimizedGenerationSpec, name: string): GeneratedAsset | null {
   const imagePrompt = spec.image_prompts[name]
   if (!imagePrompt) return null
   const image = result.images?.[0] ?? result.data?.images?.[0] ?? result.image
   if (!image?.url) return null
+  if (!isLikelyPngAssetUrl(image.url) && image.content_type !== 'image/png') {
+    throw new HudforgeServiceError(`fal.ai returned a non-PNG asset URL for ${name}. Expected PNG game HUD output.`, 502, 'fal_not_png')
+  }
   const prompt = buildFalAssetPrompt(spec, name, imagePrompt)
   return {
     id: `${name}_${stableId(`${spec.generation_id}:${name}:${image.url}`).slice(0, 8)}`,
@@ -470,24 +556,37 @@ function parseFalResultToAsset(result: { images?: Array<{ url?: string }>; image
     transparent: imagePrompt.transparent,
     provider: 'fal',
     prompt_used: prompt,
+    content_type: 'image/png',
   }
 }
 
 
-function buildFalAssetPrompt(spec: OptimizedGenerationSpec, name: string, imagePrompt: ImagePromptSpec) { return [`Roblox game UI production asset: ${name}.`, imagePrompt.prompt, `UI type: ${spec.ui_type}. Style: ${spec.style}.`, 'Clean game-world visual language, strong readable silhouette, no watermark, no tiny unreadable text, no random characters, no photorealism.', 'Designed as part of one coherent UI kit: main frame, button style, currency icon, panel/background, close/settings button.', imagePrompt.transparent ? 'Transparent PNG-style asset, isolated UI element, clean alpha edges.' : 'Backdrop/panel texture suitable for a browser preview and Roblox ScreenGui composition.'].join(' ') }
+function buildFalAssetPrompt(spec: OptimizedGenerationSpec, name: string, imagePrompt: ImagePromptSpec) {
+  return [
+    `Roblox game HUD asset (PNG): ${name}.`,
+    imagePrompt.prompt,
+    `UI type: ${spec.ui_type}. Style: ${spec.style}.`,
+    'Crisp game-world HUD asset with strong readable silhouette, high contrast edges, and clean production polish.',
+    'Not web SaaS UI, not photorealistic, not cluttered — designed for Roblox ScreenGui ImageLabels.',
+    'Designed as part of one coherent UI kit: main frame, button style, currency icon, panel/background, close/settings button.',
+    imagePrompt.transparent
+      ? 'Transparent PNG, isolated UI element, crisp anti-aliased alpha edges, no background fill, game HUD asset.'
+      : 'PNG backdrop/panel texture suitable for Roblox ScreenGui composition and browser preview.',
+  ].join(' ')
+}
 
 
 export function createDefaultOptimizerProvider(): OptimizerProvider {
   const openRouterKey = process.env.OPENROUTER_API_KEY
-  if (openRouterKey) return createOpenRouterGeminiOptimizer({ apiKey: openRouterKey })
+  if (openRouterKey) return createOpenRouterOptimizer({ apiKey: openRouterKey })
   return async ({ generation_id, prompt, ui_type, style, user_settings }) => buildOptimizedSpec(generation_id, prompt, ui_type, style, user_settings)
 }
 
-export function createOpenRouterGeminiOptimizer(options: { apiKey?: string; model?: string; fetchImpl?: typeof fetch } = {}): OptimizerProvider {
+export function createOpenRouterOptimizer(options: { apiKey?: string; model?: string; fetchImpl?: typeof fetch } = {}): OptimizerProvider {
   const apiKey = options.apiKey ?? process.env.OPENROUTER_API_KEY
-  const model = options.model ?? process.env.OPENROUTER_MODEL ?? 'google/gemini-2.5-flash'
+  const model = options.model ?? process.env.OPENROUTER_MODEL ?? 'deepseek/deepseek-chat'
   const fetchImpl = options.fetchImpl ?? fetch
-  if (!apiKey) throw new HudforgeServiceError('OPENROUTER_API_KEY is missing. Real Gemini optimizer is not configured.', 503, 'openrouter_not_configured')
+  if (!apiKey) throw new HudforgeServiceError('OPENROUTER_API_KEY is missing. Real OpenRouter optimizer is not configured.', 503, 'openrouter_not_configured')
 
   return async (input) => {
     const response = await resilientFetch(
@@ -648,13 +747,64 @@ function normalizeVector(value: unknown, fallback: LayoutVector): LayoutVector {
 }
 
 function buildOptimizerSystemPrompt() {
-  return 'You are HUDForge, a Roblox UI production optimizer. Return only valid JSON. Produce a deterministic layout spec and five image prompts. No prose, no markdown unless the API forces it.'
+  return [
+    'You are HUDForge, a Roblox UI production optimizer for game-world interfaces.',
+    'Return ONLY valid JSON matching the OptimizedGenerationSpec shape. No prose, no markdown fences, no commentary.',
+    '',
+    'ROLE: Transform a creator prompt into a production-ready Roblox ScreenGui spec with layout nodes and five image prompts.',
+    '',
+    'VISUAL DIRECTION FOR image_prompts:',
+    '- Design for Roblox game-world UI: readable silhouettes, strong contrast, stylized game art — NOT web SaaS dashboards, NOT photorealistic renders.',
+    '- All five assets must feel like one coherent UI kit: main_frame, primary_button, secondary_button, currency_icon, and background_panel share palette, border weight, corner radius language, and style tier.',
+    '- Use PNG-style transparent assets where intended (panel, button, icon). background_panel may be opaque.',
+    '- Do NOT bake readable text into generated images. Labels belong in layout TextLabel/TextButton nodes, not in image prompts.',
+    '- Iconography may be abstract (coin gem, star, chest) but must stay on-theme and legible at small sizes.',
+    '- Every image prompt must include a negative_prompt rejecting: watermark, blurry, photorealistic, cluttered, illegible micro-text, random characters, logos, busy scenery.',
+    '',
+    'LAYOUT RULES:',
+    '- Target mobile-safe Roblox ScreenGui composition with safe_area respected.',
+    '- Use only Frame, ImageLabel, TextButton, TextLabel node types.',
+    '- Position and size nodes with x_scale, x_offset, y_scale, y_offset (UDim2-friendly).',
+    '- Keep the node tree deterministic and export-friendly: stable ids, sane z_index ordering, shallow hierarchy.',
+    '- Respect the user ui_type (shop_ui, hud, inventory, main_menu, reward_screen) and style (neon, cartoon, sci_fi, anime, minimal, premium).',
+    '',
+    'REQUIRED OUTPUT KEYS:',
+    '- intent_summary: one sentence describing the UI job and visual direction.',
+    '- layout_spec.canvas: { target, width, height, safe_area }.',
+    '- layout_spec.nodes: array of layout nodes with children.',
+    '- image_prompts: exactly five keys — main_frame, primary_button, secondary_button, currency_icon, background_panel.',
+    '- Each image_prompt entry: { prompt, negative_prompt, transparent, intended_use } where intended_use is panel|button|icon|background.',
+    '',
+    'EXPORT CONSTRAINTS:',
+    '- HUDForge generates Luau code deterministically server-side. Do NOT output lua_spec, Luau, or Instance.new code.',
+    '- Do NOT invent extra assets beyond the five required keys.',
+    '- Prompts must be specific enough for fal.ai image generation (16+ chars per prompt).',
+  ].join('\n')
 }
 
 function buildOptimizerUserPrompt(input: OptimizerProviderInput) {
   return JSON.stringify({
-    task: 'Create a Roblox UI generation spec. Return JSON with intent_summary, layout_spec.canvas, layout_spec.nodes, and image_prompts for exactly main_frame, primary_button, secondary_button, currency_icon, background_panel.',
-    constraints: ['Roblox ScreenGui friendly', 'mobile safe area', 'no baked text in generated image prompts except icon-free labels', 'all final code will be generated deterministically by HUDForge'],
+    task: 'Create a Roblox UI generation spec as JSON only.',
+    output_skeleton: {
+      intent_summary: 'string',
+      layout_spec: {
+        canvas: { target: 'mobile|desktop', width: 'number', height: 'number', safe_area: 'boolean' },
+        nodes: [{ id: 'string', type: 'Frame|ImageLabel|TextButton|TextLabel', name: 'string', asset_ref: 'string|null', position: { x_scale: 'number', x_offset: 'number', y_scale: 'number', y_offset: 'number' }, size: { x_scale: 'number', x_offset: 'number', y_scale: 'number', y_offset: 'number' }, z_index: 'number', text: 'string|null', children: '[]' }],
+      },
+      image_prompts: {
+        main_frame: { prompt: 'string', negative_prompt: 'string', transparent: true, intended_use: 'panel' },
+        primary_button: { prompt: 'string', negative_prompt: 'string', transparent: true, intended_use: 'button' },
+        secondary_button: { prompt: 'string', negative_prompt: 'string', transparent: true, intended_use: 'button' },
+        currency_icon: { prompt: 'string', negative_prompt: 'string', transparent: true, intended_use: 'icon' },
+        background_panel: { prompt: 'string', negative_prompt: 'string', transparent: false, intended_use: 'background' },
+      },
+    },
+    export_constraints: [
+      'HUDForge generates Luau deterministically server-side — do NOT output lua_spec or any Luau code.',
+      'Return exactly five image_prompt keys: main_frame, primary_button, secondary_button, currency_icon, background_panel.',
+      'Layout nodes must be Roblox ScreenGui friendly with mobile safe area.',
+      'No baked text in image prompts; editable labels go in layout TextLabel/TextButton nodes.',
+    ],
     allowed_node_types: ['Frame', 'ImageLabel', 'TextButton', 'TextLabel'],
     allowed_asset_uses: ['panel', 'button', 'icon', 'background'],
     prompt: input.prompt,
@@ -688,21 +838,43 @@ async function refundAssetCredits(repository: HudforgeRepository, userId: string
   await repository.addCreditLedgerEntry(userId, ASSET_CREDIT_COST, 'asset_generation_refund', generationId, { reason })
 }
 
+export async function getQueueTierForUser(repository: HudforgeRepository, userId: string): Promise<QueueTier> {
+  const subscriptions = await repository.listSubscriptions(userId)
+  const activeSubscription = subscriptions.find((subscription) => subscription.state === 'active_paid' || subscription.state === 'trial')
+  if (!activeSubscription) return 'standard'
+  const plan = billingPlans[activeSubscription.plan_id]
+  return plan.entitlements?.queue === 'priority' ? 'priority' : 'standard'
+}
+
+export async function getRateLimitsForUser(repository: HudforgeRepository, userId: string): Promise<RateLimitPolicy> {
+  const queueTier = await getQueueTierForUser(repository, userId)
+  return queueTier === 'priority' ? PRIORITY_RATE_LIMITS : DEFAULT_RATE_LIMITS
+}
+
+async function resolveRateLimits(repository: HudforgeRepository, userId: string, override?: Partial<RateLimitPolicy>): Promise<RateLimitPolicy> {
+  const base = await getRateLimitsForUser(repository, userId)
+  return { ...base, ...(override ?? {}) }
+}
+
 async function enforceRateLimit(repository: HudforgeRepository, userId: string, stage: 'optimizer' | 'asset_bundle', limit: number) {
   const windowSeconds = 3600
   const safeLimit = Math.max(0, Math.floor(limit))
-  const since = Date.now() - windowSeconds * 1000
+  const sinceIso = new Date(Date.now() - windowSeconds * 1000).toISOString()
   const eventName: UsageEventName = stage === 'optimizer' ? 'prompt_optimized' : 'assets_generated'
-  const events = await repository.listUsageEvents(userId)
-  const count = events.filter((event) => event.name === eventName && Date.parse(event.created_at) >= since).length
+  const count = await repository.countRecentUsageEvents(userId, eventName, sinceIso)
   if (count >= safeLimit) {
     const metadata = { stage, limit: safeLimit, used: count, window_seconds: windowSeconds }
     await repository.recordUsageEvent(userId, { name: 'generation_rate_limited', metadata })
     throw new HudforgeServiceError(`Rate limit reached for ${stage}. Try again later.`, 429, 'rate_limited', metadata)
   }
 }
-function optimizerCostMetadata(): Record<string, string | number | boolean> { return { provider: process.env.OPENROUTER_API_KEY ? 'openrouter' : 'openrouter_or_mock', cost_stage: 'optimizer', estimated_cost_usd: OPTIMIZER_ESTIMATED_COST_USD } }
+function optimizerCostMetadata(): Record<string, string | number | boolean> { return { provider: process.env.OPENROUTER_API_KEY ? 'openrouter' : 'mock', cost_stage: 'optimizer', estimated_cost_usd: OPTIMIZER_ESTIMATED_COST_USD } }
 function assetCostMetadata(): Record<string, string | number | boolean> { return { provider: 'fal', cost_stage: 'asset_bundle', estimated_cost_usd: FAL_ASSET_ESTIMATED_COST_USD * FAL_BUNDLE_ASSET_COUNT, asset_count: FAL_BUNDLE_ASSET_COUNT } }
+
+async function hasAssetGenerationDebit(repository: HudforgeRepository, userId: string, generationId: string) {
+  const ledger = await repository.listCreditLedger(userId)
+  return ledger.some((entry) => entry.generation_id === generationId && entry.reason === 'asset_generation' && entry.delta < 0)
+}
 
 async function requireGenerationFromRepo(repository: HudforgeRepository, userId: string, generationId: string) { const generation = await repository.getGeneration(userId, generationId); if (!generation) throw new HudforgeServiceError('Generation not found', 404, 'generation_not_found'); return generation }
 async function updateGeneration(repository: HudforgeRepository, generation: Generation, updates: Partial<Generation>) { const updated = { ...generation, ...updates, updated_at: new Date().toISOString() }; return repository.upsertGeneration(updated) }
@@ -711,10 +883,14 @@ async function getBillingStatusFromRepository(repository: HudforgeRepository, us
   const ledger = await repository.listCreditLedger(userId)
   const subscriptions = await repository.listSubscriptions(userId)
   const activeSubscription = subscriptions.find((subscription) => subscription.state === 'active_paid' || subscription.state === 'trial')
-  const current_plan = activeSubscription ? billingPlans[activeSubscription.plan_id] : freePlan
+  const latestSubscription = subscriptions[0]
+  const resolvedSubscription = activeSubscription ?? latestSubscription
+  const current_plan = resolvedSubscription ? billingPlans[resolvedSubscription.plan_id] : freePlan
   const credits_used = Math.abs(ledger.filter((entry) => entry.delta < 0).reduce((total, entry) => total + entry.delta, 0))
   const checkout_ready = isLemonSqueezyConfigured()
-  return { state: activeSubscription?.state ?? (checkout_ready ? 'free' : 'unknown_mock'), current_plan, credits_included: current_plan.credits, credits_used, credits_remaining: balance, checkout_ready, customer_portal_ready: checkout_ready, provider: checkout_ready ? 'lemon_squeezy' : 'mock' }
+  const customer_portal_ready = subscriptions.some((subscription) => Boolean(subscription.lemon_squeezy_customer_id)) && checkout_ready
+  const state = resolvedSubscription?.state ?? (checkout_ready ? 'free' : 'unknown_mock')
+  return { state, current_plan, credits_included: current_plan.credits, credits_used, credits_remaining: balance, checkout_ready, customer_portal_ready, provider: checkout_ready ? 'lemon_squeezy' : 'mock', topups: creditTopUps }
 }
 
 export interface LemonSqueezyCheckoutOptions { apiKey?: string; storeId?: string; variantIds?: Partial<Record<Exclude<BillingPlanId, 'free'>, string>>; siteUrl?: string; fetchImpl?: typeof fetch }
@@ -722,7 +898,7 @@ export async function createLemonSqueezyCheckout(userId: string, planId: Billing
   if (planId === 'free') throw new HudforgeServiceError('Free plan does not require checkout.', 400, 'checkout_not_required')
   const apiKey = options.apiKey ?? process.env.LEMON_SQUEEZY_API_KEY
   const storeId = options.storeId ?? process.env.LEMON_SQUEEZY_STORE_ID
-  const variantIds = options.variantIds ?? { starter: process.env.LEMON_SQUEEZY_STARTER_VARIANT_ID, pro: process.env.LEMON_SQUEEZY_PRO_VARIANT_ID }
+  const variantIds = options.variantIds ?? { starter: process.env.LEMON_SQUEEZY_STARTER_VARIANT_ID, pro: process.env.LEMON_SQUEEZY_PRO_VARIANT_ID, dev: process.env.LEMON_SQUEEZY_DEV_VARIANT_ID }
   const variantId = variantIds[planId]
   if (!apiKey || !storeId || !variantId) throw new HudforgeServiceError('Lemon Squeezy checkout is not configured.', 503, 'lemon_squeezy_not_configured', { plan_id: planId })
   const siteUrl = (options.siteUrl ?? process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.hudforge.app').replace(/\/$/, '')
@@ -747,6 +923,38 @@ export async function createLemonSqueezyCheckout(userId: string, planId: Billing
   if (!checkout_url) throw new HudforgeServiceError('Lemon Squeezy did not return a checkout URL.', 502, 'lemon_squeezy_checkout_missing_url')
   return { checkout_url, plan_id: planId }
 }
+
+export interface LemonSqueezyTopUpCheckoutOptions { apiKey?: string; storeId?: string; siteUrl?: string; fetchImpl?: typeof fetch }
+export async function createLemonSqueezyTopUpCheckout(userId: string, topUpId: CreditTopUpId, options: LemonSqueezyTopUpCheckoutOptions = {}) {
+  const topUp = creditTopUps.find((t) => t.id === topUpId)
+  if (!topUp) throw new HudforgeServiceError(`Invalid top-up ID: ${topUpId}`, 400, 'invalid_topup_id')
+  const apiKey = options.apiKey ?? process.env.LEMON_SQUEEZY_API_KEY
+  const storeId = options.storeId ?? process.env.LEMON_SQUEEZY_STORE_ID
+  const variantIds: Record<CreditTopUpId, string | undefined> = { topup_250: process.env.LEMON_SQUEEZY_TOPUP_250_VARIANT_ID, topup_1000: process.env.LEMON_SQUEEZY_TOPUP_1000_VARIANT_ID, topup_3000: process.env.LEMON_SQUEEZY_TOPUP_3000_VARIANT_ID }
+  const variantId = variantIds[topUpId]
+  if (!apiKey || !storeId || !variantId) throw new HudforgeServiceError('Lemon Squeezy top-up checkout is not configured.', 503, 'lemon_squeezy_not_configured', { topup_id: topUpId })
+  const siteUrl = (options.siteUrl ?? process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.hudforge.app').replace(/\/$/, '')
+  const fetchImpl = options.fetchImpl ?? fetch
+  const response = await fetchImpl('https://api.lemonsqueezy.com/v1/checkouts', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/vnd.api+json', 'Content-Type': 'application/vnd.api+json' },
+    body: JSON.stringify({
+      data: {
+        type: 'checkouts',
+        attributes: {
+          checkout_data: { custom: { user_id: userId, plan_id: 'topup', topup_id: topUpId, credits: topUp.credits } },
+          product_options: { redirect_url: `${siteUrl}/billing?topup=success` },
+        },
+        relationships: { store: { data: { type: 'stores', id: storeId } }, variant: { data: { type: 'variants', id: variantId } } },
+      },
+    }),
+  })
+  if (!response.ok) throw new HudforgeServiceError(`Lemon Squeezy top-up checkout failed with status ${response.status}: ${(await safeResponseText(response)).slice(0, 220)}`, 502, 'lemon_squeezy_checkout_failed')
+  const payload = (await response.json()) as { data?: { attributes?: { url?: string } } }
+  const checkout_url = payload.data?.attributes?.url
+  if (!checkout_url) throw new HudforgeServiceError('Lemon Squeezy did not return a checkout URL.', 502, 'lemon_squeezy_checkout_missing_url')
+  return { checkout_url, topup_id: topUpId, credits: topUp.credits }
+}
 export async function verifyLemonSqueezySignature(body: string, signature: string | null, secret: string) {
   if (!secret) throw new HudforgeServiceError('Lemon Squeezy webhook secret is not configured.', 503, 'lemon_squeezy_webhook_not_configured')
   if (!signature) throw new HudforgeServiceError('Missing Lemon Squeezy webhook signature.', 401, 'missing_webhook_signature')
@@ -762,27 +970,112 @@ export async function handleLemonSqueezyWebhook(repository: HudforgeRepository, 
   const eventName = typeof payload.meta?.event_name === 'string' ? payload.meta.event_name : 'unknown'
   const custom = payload.meta?.custom_data ?? (payload.data?.attributes?.custom_data as Record<string, unknown> | undefined) ?? {}
   const userId = typeof custom.user_id === 'string' ? custom.user_id : ''
-  const planId = normalizeBillingPlanId(typeof custom.plan_id === 'string' ? custom.plan_id : 'starter')
   if (!userId) throw new HudforgeServiceError('Lemon Squeezy webhook is missing custom user_id.', 400, 'webhook_user_missing')
   const eventId = `${payload.data?.id ?? stableId(body)}:${eventName}`
   const ledger = await repository.listCreditLedger(userId)
-  if (ledger.some((entry) => entry.metadata?.lemon_squeezy_event_id === eventId)) return { processed: false, duplicate: true, user_id: userId, plan_id: planId, credits_granted: 0 }
+  const usageEvents = await repository.listUsageEvents(userId)
+  const isDuplicateEvent = ledger.some((entry) => entry.metadata?.lemon_squeezy_event_id === eventId)
+    || usageEvents.some((event) => event.metadata?.lemon_squeezy_event_id === eventId)
+  if (isDuplicateEvent) {
+    return { processed: false, duplicate: true, user_id: userId, plan_id: typeof custom.plan_id === 'string' ? custom.plan_id : 'starter', credits_granted: 0 }
+  }
+
+  const isTopUp = custom.plan_id === 'topup' && typeof custom.topup_id === 'string'
+  if (isTopUp) {
+    const orderStatus = typeof payload.data?.attributes?.status === 'string' ? payload.data.attributes.status.toLowerCase() : 'paid'
+    if (eventName === 'order_created' && orderStatus !== 'paid') {
+      return { processed: true, duplicate: false, user_id: userId, plan_id: 'topup', credits_granted: 0 }
+    }
+
+    const topUpId = custom.topup_id as string
+    const topUp = creditTopUps.find((t) => t.id === topUpId)
+    const credits = topUp?.credits ?? (typeof custom.credits === 'number' ? custom.credits : 0)
+    if (credits > 0) {
+      await repository.addCreditLedgerEntry(userId, credits, 'manual_adjustment', undefined, { source: 'lemon_squeezy', lemon_squeezy_event_id: eventId, plan_id: 'topup', topup_id: topUpId, event_name: eventName })
+    }
+    return { processed: true, duplicate: false, user_id: userId, plan_id: 'topup', credits_granted: credits }
+  }
+
+  const planId = normalizeBillingPlanId(typeof custom.plan_id === 'string' ? custom.plan_id : 'starter')
   const attrs = payload.data?.attributes ?? {}
   const now = new Date().toISOString()
-  const state = mapLemonSqueezyState(typeof attrs.status === 'string' ? attrs.status : eventName)
-  await repository.upsertSubscription({ id: `sub_${stableId(`${userId}:${payload.data?.id ?? eventId}`).slice(0, 12)}`, user_id: userId, state, lemon_squeezy_customer_id: stringifyNullable(attrs.customer_id), lemon_squeezy_subscription_id: payload.data?.id ?? null, lemon_squeezy_variant_id: stringifyNullable(attrs.variant_id), plan_id: planId, current_period_start: stringifyNullable(attrs.created_at), current_period_end: stringifyNullable(attrs.renews_at), cancel_at_period_end: Boolean(attrs.cancelled), metadata: { lemon_squeezy_event_name: eventName }, created_at: now, updated_at: now })
-  const credits = state === 'active_paid' || state === 'trial' ? billingPlans[planId].credits : 0
-  if (credits > 0) await repository.addCreditLedgerEntry(userId, credits, 'manual_adjustment', undefined, { source: 'lemon_squeezy', lemon_squeezy_event_id: eventId, plan_id: planId, event_name: eventName })
+  const existingSubscriptions = await repository.listSubscriptions(userId)
+  const existingSubscription = existingSubscriptions.find((subscription) => subscription.lemon_squeezy_subscription_id === stringifyNullable(payload.data?.id))
+  const state = mapLemonSqueezySubscriptionState(eventName, typeof attrs.status === 'string' ? attrs.status : eventName)
+  const cancelAtPeriodEnd = eventName === 'subscription_cancelled' || Boolean(attrs.cancelled) || state === 'canceled'
+
+  await repository.upsertSubscription({
+    id: existingSubscription?.id ?? `sub_${stableId(`${userId}:${payload.data?.id ?? eventId}`).slice(0, 12)}`,
+    user_id: userId,
+    state,
+    lemon_squeezy_customer_id: stringifyNullable(attrs.customer_id) ?? existingSubscription?.lemon_squeezy_customer_id ?? null,
+    lemon_squeezy_subscription_id: payload.data?.id ?? existingSubscription?.lemon_squeezy_subscription_id ?? null,
+    lemon_squeezy_variant_id: stringifyNullable(attrs.variant_id) ?? existingSubscription?.lemon_squeezy_variant_id ?? null,
+    plan_id: planId,
+    current_period_start: stringifyNullable(attrs.created_at) ?? existingSubscription?.current_period_start ?? null,
+    current_period_end: stringifyNullable(attrs.renews_at ?? attrs.ends_at) ?? existingSubscription?.current_period_end ?? null,
+    cancel_at_period_end: cancelAtPeriodEnd,
+    metadata: { lemon_squeezy_event_name: eventName },
+    created_at: existingSubscription?.created_at ?? now,
+    updated_at: now,
+  })
+
+  const credits = eventName === 'subscription_payment_success' && (state === 'active_paid' || state === 'trial') ? billingPlans[planId].credits : 0
+  if (credits > 0) {
+    await repository.addCreditLedgerEntry(userId, credits, 'manual_adjustment', undefined, { source: 'lemon_squeezy', lemon_squeezy_event_id: eventId, plan_id: planId, event_name: eventName })
+  } else {
+    await repository.recordUsageEvent(userId, { name: 'subscription_synced', metadata: { lemon_squeezy_event_id: eventId, event_name: eventName, plan_id: planId } })
+  }
+
   return { processed: true, duplicate: false, user_id: userId, plan_id: planId, credits_granted: credits }
 }
+
+export interface LemonSqueezyPortalOptions { apiKey?: string; fetchImpl?: typeof fetch }
+
+export async function getLemonSqueezyCustomerPortalUrl(repository: HudforgeRepository, userId: string, options: LemonSqueezyPortalOptions = {}) {
+  const subscriptions = await repository.listSubscriptions(userId)
+  const subscription = subscriptions.find((entry) => entry.lemon_squeezy_subscription_id) ?? subscriptions.find((entry) => entry.lemon_squeezy_customer_id)
+  const customerId = subscription?.lemon_squeezy_customer_id
+  const subscriptionId = subscription?.lemon_squeezy_subscription_id
+  if (!customerId && !subscriptionId) {
+    throw new HudforgeServiceError('No Lemon Squeezy customer found for this account.', 404, 'customer_not_found')
+  }
+
+  const apiKey = options.apiKey ?? process.env.LEMON_SQUEEZY_API_KEY
+  if (!apiKey) throw new HudforgeServiceError('Lemon Squeezy customer portal is not configured.', 503, 'lemon_squeezy_not_configured')
+
+  const fetchImpl = options.fetchImpl ?? fetch
+  const resourceUrl = subscriptionId
+    ? `https://api.lemonsqueezy.com/v1/subscriptions/${subscriptionId}`
+    : `https://api.lemonsqueezy.com/v1/customers/${customerId}`
+  const response = await fetchImpl(resourceUrl, {
+    headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/vnd.api+json' },
+  })
+  if (!response.ok) {
+    throw new HudforgeServiceError(`Lemon Squeezy portal lookup failed with status ${response.status}: ${(await safeResponseText(response)).slice(0, 220)}`, 502, 'lemon_squeezy_portal_failed')
+  }
+
+  const payload = (await response.json()) as { data?: { attributes?: { urls?: { customer_portal?: string | null } } } }
+  const portal_url = payload.data?.attributes?.urls?.customer_portal
+  if (!portal_url) throw new HudforgeServiceError('Lemon Squeezy did not return a customer portal URL.', 502, 'lemon_squeezy_portal_missing_url')
+  return { portal_url }
+}
 function isLemonSqueezyConfigured() { return Boolean(process.env.LEMON_SQUEEZY_API_KEY && process.env.LEMON_SQUEEZY_STORE_ID && (process.env.LEMON_SQUEEZY_STARTER_VARIANT_ID || process.env.LEMON_SQUEEZY_PRO_VARIANT_ID)) }
-function normalizeBillingPlanId(value: string): Exclude<BillingPlanId, 'free'> { return value === 'pro' ? 'pro' : 'starter' }
-function mapLemonSqueezyState(value: string): BillingState { const normalized = value.toLowerCase(); if (normalized.includes('trial')) return 'trial'; if (normalized.includes('cancel')) return 'canceled'; if (normalized.includes('past_due') || normalized.includes('past due')) return 'past_due'; return 'active_paid' }
+function normalizeBillingPlanId(value: string): Exclude<BillingPlanId, 'free'> { return value === 'pro' ? 'pro' : value === 'dev' ? 'dev' : 'starter' }
+function mapLemonSqueezySubscriptionState(eventName: string, value: string): BillingState {
+  const normalizedEvent = eventName.toLowerCase()
+  if (normalizedEvent === 'subscription_cancelled') return 'canceled'
+  const normalized = value.toLowerCase()
+  if (normalized.includes('trial')) return 'trial'
+  if (normalized.includes('cancel')) return 'canceled'
+  if (normalized.includes('past_due') || normalized.includes('past due')) return 'past_due'
+  return 'active_paid'
+}
 function stringifyNullable(value: unknown) { return value === undefined || value === null ? null : String(value) }
 function toSubscriptionRow(subscription: HudforgeSubscription) { return { id: subscription.id, user_id: subscription.user_id, state: subscription.state, lemon_squeezy_customer_id: subscription.lemon_squeezy_customer_id ?? null, lemon_squeezy_subscription_id: subscription.lemon_squeezy_subscription_id ?? null, lemon_squeezy_variant_id: subscription.lemon_squeezy_variant_id ?? null, plan_id: subscription.plan_id, current_period_start: subscription.current_period_start ?? null, current_period_end: subscription.current_period_end ?? null, cancel_at_period_end: subscription.cancel_at_period_end, metadata: subscription.metadata ?? {}, created_at: subscription.created_at, updated_at: subscription.updated_at } }
-function fromSubscriptionRow(row: Record<string, unknown>): HudforgeSubscription { return { id: String(row.id), user_id: String(row.user_id), state: row.state as BillingState, lemon_squeezy_customer_id: stringifyNullable(row.lemon_squeezy_customer_id), lemon_squeezy_subscription_id: stringifyNullable(row.lemon_squeezy_subscription_id), lemon_squeezy_variant_id: stringifyNullable(row.lemon_squeezy_variant_id), plan_id: (row.plan_id === 'pro' ? 'pro' : row.plan_id === 'starter' ? 'starter' : 'free') as BillingPlanId, current_period_start: stringifyNullable(row.current_period_start), current_period_end: stringifyNullable(row.current_period_end), cancel_at_period_end: Boolean(row.cancel_at_period_end), metadata: row.metadata as Record<string, unknown> | undefined, created_at: String(row.created_at), updated_at: String(row.updated_at) } }
+function fromSubscriptionRow(row: Record<string, unknown>): HudforgeSubscription { return { id: String(row.id), user_id: String(row.user_id), state: row.state as BillingState, lemon_squeezy_customer_id: stringifyNullable(row.lemon_squeezy_customer_id), lemon_squeezy_subscription_id: stringifyNullable(row.lemon_squeezy_subscription_id), lemon_squeezy_variant_id: stringifyNullable(row.lemon_squeezy_variant_id), plan_id: (row.plan_id === 'pro' ? 'pro' : row.plan_id === 'dev' ? 'dev' : row.plan_id === 'starter' ? 'starter' : 'free') as BillingPlanId, current_period_start: stringifyNullable(row.current_period_start), current_period_end: stringifyNullable(row.current_period_end), cancel_at_period_end: Boolean(row.cancel_at_period_end), metadata: row.metadata as Record<string, unknown> | undefined, created_at: String(row.created_at), updated_at: String(row.updated_at) } }
 
-export function getProviderStatus(): ProviderStatus { return { llm: process.env.OPENROUTER_API_KEY ? 'openrouter_gemini' : process.env.GEMINI_API_KEY ? 'gemini' : 'mock', assets: process.env.FAL_KEY ? 'fal' : 'missing_fal_key', billing: process.env.LEMON_SQUEEZY_API_KEY ? 'lemon_squeezy' : 'mock' } }
+export function getProviderStatus(): ProviderStatus { return { llm: process.env.OPENROUTER_API_KEY ? 'openrouter_deepseek' : 'mock', assets: process.env.FAL_KEY ? 'fal' : 'missing_fal_key', billing: process.env.LEMON_SQUEEZY_API_KEY ? 'lemon_squeezy' : 'mock' } }
 export function assertGenerationStatus(status: string): asserts status is GenerationStatus { if (!generationStatuses.includes(status as GenerationStatus)) throw new HudforgeServiceError(`Unsupported generation status: ${status}`, 400, 'invalid_status') }
 export function exportLayoutToLuau(spec: OptimizedGenerationSpec): string { const lines = [`-- HUDForge export: ${escapeLuauString(spec.intent_summary)}`, `-- UI type: ${spec.ui_type}`, `-- Style: ${spec.style}`, '-- Asset refs are listed in assets/assets.json. Replace rbxassetid://0 with uploaded Roblox asset IDs.', 'local ScreenGui = Instance.new("ScreenGui")', `ScreenGui.Name = "${escapeLuauString(spec.lua_spec.screen_gui_name)}"`, 'ScreenGui.ResetOnSpawn = false', 'ScreenGui.IgnoreGuiInset = true', 'ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling', '']; for (const instance of spec.lua_spec.root_instances) appendInstanceLuau(lines, instance); lines.push('return ScreenGui', ''); return lines.join('\n') }
 
@@ -809,7 +1102,7 @@ function buildExportPackage(spec: OptimizedGenerationSpec, assetBundle?: AssetBu
     { path: 'manifest.json', content_type: 'application/json', content: JSON.stringify(manifest, null, 2) },
     { path: 'layout.json', content_type: 'application/json', content: JSON.stringify(spec.layout_spec, null, 2) },
     { path: 'code/MainUI.lua', content_type: 'text/x-lua', content: lua },
-    { path: 'assets/assets.json', content_type: 'application/json', content: JSON.stringify({ assets: assetBundle?.assets ?? [], asset_refs: spec.asset_list, replacement_note: 'Upload each image URL to Roblox, then replace matching rbxassetid://0 placeholders in code/MainUI.lua.' }, null, 2) },
+    { path: 'assets/assets.json', content_type: 'application/json', content: JSON.stringify({ assets: (assetBundle?.assets ?? []).map((asset) => ({ ...asset, format: 'png', content_type: asset.content_type ?? 'image/png' })), asset_refs: spec.asset_list, replacement_note: 'Upload each PNG image URL to Roblox, then replace matching rbxassetid://0 placeholders in code/MainUI.lua.' }, null, 2) },
     { path: 'README_IMPORT.md', content_type: 'text/markdown', content: buildImportReadme(spec) },
   ]
   const zip = createZipArchive(files.map((file) => ({ path: file.path, content: file.content })))
@@ -922,8 +1215,8 @@ function normalizeGenerationStyle(value?: string): GenerationStyle { if (value =
 function paletteForStyle(style: GenerationStyle) { const palettes: Record<GenerationStyle, { background: string; panel: string; accent: string; text: string }> = { neon: { background: '#090A1A', panel: '#15122B', accent: '#B46CFF', text: '#F3E8FF' }, cartoon: { background: '#102033', panel: '#23415E', accent: '#FFCD4D', text: '#FFFFFF' }, sci_fi: { background: '#08111F', panel: '#132033', accent: '#5BE7FF', text: '#EAF7FF' }, anime: { background: '#16091F', panel: '#281237', accent: '#FF79C6', text: '#FFF4FB' }, minimal: { background: '#0B1020', panel: '#1F2937', accent: '#CBD5E1', text: '#F8FAFC' }, premium: { background: '#09090B', panel: '#18181B', accent: '#D4AF37', text: '#FAFAFA' } }; return palettes[style] }
 function buildTitle(prompt: string, uiType: UiType) { const analysis = analyzeRobloxPrompt(prompt, uiType); const tokens = analysis.tokens.filter((token) => !['a', 'an', 'the', 'for', 'with', 'make', 'create', 'build', 'design', 'ui'].includes(token)).slice(0, 3); const fallback = uiType.replace('_', ' '); const title = tokens.length ? tokens.map((token) => token[0].toUpperCase() + token.slice(1)).join(' ') : fallback; return `${title} ${uiType === 'hud' ? 'HUD' : 'UI'}` }
 function buildMockSvgDataUrl(spec: OptimizedGenerationSpec, name: string, use: AssetUse) { const palette = paletteForStyle(spec.style); const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><rect width="1024" height="1024" rx="112" fill="${palette.background}"/><rect x="144" y="208" width="736" height="608" rx="68" fill="${palette.panel}" stroke="${palette.accent}" stroke-width="16"/><circle cx="512" cy="512" r="144" fill="${palette.accent}" opacity="0.74"/><text x="512" y="896" text-anchor="middle" fill="${palette.text}" font-family="Arial" font-size="54" font-weight="700">${escapeXml(name.toUpperCase())}</text><text x="512" y="130" text-anchor="middle" fill="${palette.text}" font-family="Arial" font-size="36" font-weight="700">${escapeXml(use.toUpperCase())}</text></svg>`; return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}` }
-function toGenerationRow(generation: Generation) { return { id: generation.id, user_id: generation.user_id, title: generation.title, prompt: generation.prompt, ui_type: generation.ui_type, style: generation.style, status: generation.status, optimized_spec: generation.optimized_spec ?? null, asset_bundle: generation.asset_bundle ?? null, export_package: generation.export_package ?? null, error: generation.error ?? null, created_at: generation.created_at, updated_at: generation.updated_at } }
-function fromGenerationRow(row: Record<string, unknown>): Generation { return { id: row.id as string, user_id: row.user_id as string, title: row.title as string, prompt: row.prompt as string, ui_type: row.ui_type as UiType, style: row.style as GenerationStyle, status: row.status as GenerationStatus, optimized_spec: (row.optimized_spec ?? undefined) as OptimizedGenerationSpec | undefined, asset_bundle: (row.asset_bundle ?? undefined) as AssetBundle | undefined, export_package: (row.export_package ?? undefined) as ExportPackagePayload | undefined, error: (row.error ?? undefined) as string | undefined, created_at: row.created_at as string, updated_at: row.updated_at as string } }
+function toGenerationRow(generation: Generation) { return { id: generation.id, user_id: generation.user_id, title: generation.title, prompt: generation.prompt, ui_type: generation.ui_type, style: generation.style, status: generation.status, optimized_spec: generation.optimized_spec ?? null, asset_bundle: generation.asset_bundle ?? null, export_package: generation.export_package ?? null, error: generation.error ?? null, metadata: generation.metadata ?? {}, created_at: generation.created_at, updated_at: generation.updated_at } }
+function fromGenerationRow(row: Record<string, unknown>): Generation { return { id: row.id as string, user_id: row.user_id as string, title: row.title as string, prompt: row.prompt as string, ui_type: row.ui_type as UiType, style: row.style as GenerationStyle, status: row.status as GenerationStatus, optimized_spec: (row.optimized_spec ?? undefined) as OptimizedGenerationSpec | undefined, asset_bundle: (row.asset_bundle ?? undefined) as AssetBundle | undefined, export_package: (row.export_package ?? undefined) as ExportPackagePayload | undefined, error: (row.error ?? undefined) as string | undefined, metadata: (row.metadata ?? undefined) as Record<string, unknown> | undefined, created_at: row.created_at as string, updated_at: row.updated_at as string } }
 function dbError(error: { message?: string }, message: string) { return new HudforgeServiceError(`${message}: ${error.message ?? 'database error'}`, 500, 'database_error') }
 function mapAtomicDebitError(error: { message?: string }, fallbackAmount: number) {
   const message = error.message ?? ''

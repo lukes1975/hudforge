@@ -3,16 +3,21 @@ import { getE2EAuthBypassHeaderName, getE2EAuthBypassUserId } from '@/lib/hudfor
 
 const isProtectedRoute = createRouteMatcher([
   '/dashboard(.*)',
-  '/generate(.*)',
   '/projects(.*)',
   '/settings(.*)',
   '/billing(.*)',
-  '/api/generate(.*)',
+  '/api/generate/optimize(.*)',
+  '/api/generate/assets(.*)',
+  '/api/generate/assets/poll(.*)',
+  '/api/generate/assets/status(.*)',
+  '/api/generate/export(.*)',
   '/api/generations(.*)',
   '/api/usage/event(.*)',
   '/api/settings(.*)',
   '/api/billing/status(.*)',
   '/api/billing/checkout(.*)',
+  '/api/billing/topup(.*)',
+  '/api/billing/portal(.*)',
 ])
 
 export default clerkMiddleware((auth, request) => {

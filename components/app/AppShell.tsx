@@ -2,15 +2,9 @@ import { SignOutButton } from '@clerk/nextjs'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
+import { AppNavLinks } from '@/components/app/AppNavLinks'
+import { SidebarCreditsCard } from '@/components/app/SidebarCreditsCard'
 import { getHudforgeAuthState } from '@/lib/hudforge-auth'
-
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/generate', label: 'Generate' },
-  { href: '/projects', label: 'Projects' },
-  { href: '/settings', label: 'Settings' },
-  { href: '/billing', label: 'Billing' },
-]
 
 export async function AppShell({
   title,
@@ -34,36 +28,20 @@ export async function AppShell({
           <Link href="/dashboard" className="text-lg font-semibold tracking-[-0.03em] text-white">
             HUDForge
           </Link>
-          <nav className="mt-8 grid gap-2">
-            {navItems.map((item) => (
-              <Link key={item.href} href={item.href} className="rounded-lg px-3 py-2 text-sm text-slate-300 transition hover:bg-white/[0.06] hover:text-white">
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-          <div className="mt-8 rounded-lg border border-cyan-400/20 bg-cyan-400/10 p-4">
-            <p className="text-xs uppercase tracking-[0.22em] text-cyan-200">Free credits</p>
-            <p className="mt-2 text-2xl font-semibold">25</p>
-            <p className="mt-1 text-xs leading-5 text-slate-400">Mock-safe generation credits for local workflow testing.</p>
-          </div>
+          <AppNavLinks variant="sidebar" />
+          <SidebarCreditsCard />
         </aside>
 
         <div className="min-w-0">
           <header className="border-b border-white/10 bg-slate-950/45 px-5 py-5 sm:px-6 lg:px-8">
             <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
               <div>
-                <p className="section-kicker">Authenticated workspace</p>
+                <p className="section-kicker">Workspace</p>
                 <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">{title}</h1>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">{description}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <nav className="flex flex-wrap gap-2 lg:hidden">
-                  {navItems.map((item) => (
-                    <Link key={item.href} href={item.href} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300">
-                      {item.label}
-                    </Link>
-                  ))}
-                </nav>
+                <AppNavLinks variant="mobile" />
                 {authState.mode === 'local-e2e-bypass' ? (
                   <span className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">Local E2E auth</span>
                 ) : (

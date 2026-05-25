@@ -17,16 +17,14 @@ export default function LegalIndexPage() {
       <main>
         <PageHero
           eyebrow="Legal"
-          title="Public policies for launch, billing, and trust."
-          copy="Review the policies that govern account usage, privacy, billing, AI output, and compliance for HUDForge."
+          title="Policies for accounts, billing, and AI output."
+          copy="Review the policies that govern HUDForge subscriptions, credits, privacy, refunds, and acceptable use."
           primary={{ label: 'Contact HUDForge', href: '/contact' }}
           secondary={{ label: 'View Pricing', href: '/pricing' }}
         >
           <div className="rune-card p-5">
-            <p className="data-label">Launch note</p>
-            <p className="mt-4 text-sm leading-7 text-slate-300">
-              Some pages contain clearly marked placeholders that must be finalized with company and jurisdiction details before public launch.
-            </p>
+            <p className="data-label">Last updated</p>
+            <p className="mt-4 text-sm leading-7 text-slate-300">May 2026 — USD pricing, Lemon Squeezy billing, and AI generation workflows.</p>
           </div>
         </PageHero>
 

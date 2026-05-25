@@ -33,7 +33,6 @@ export type BlogPost = {
 }
 
 export const navItems: NavItem[] = [
-  { label: 'Generate', href: '/generate' },
   { label: 'Templates', href: '/templates' },
   { label: 'How It Works', href: '/how-it-works' },
   { label: 'Pricing', href: '/pricing' },
@@ -174,31 +173,31 @@ export const templates: Template[] = [
 
 export const pricingPlans = [
   {
-    name: 'Scout',
+    name: 'Free',
     price: '$0',
-    cadence: 'during beta',
-    description: 'For builders validating a new Roblox UI direction.',
-    cta: 'Join Waitlist',
+    cadence: 'forever',
+    description: 'Validate the workflow with 25 starter credits.',
+    cta: 'Start free',
     featured: false,
-    features: ['3 template previews', 'Prompt starter library', 'Community launch notes', 'Basic export guidance'],
+    features: ['25 credits (5 generations)', 'PNG export', 'Community support', 'Basic templates'],
   },
   {
-    name: 'Forge Pro',
+    name: 'Starter',
     price: '$19',
-    cadence: 'per creator / month',
-    description: 'For solo creators and small teams shipping weekly updates.',
-    cta: 'Reserve Founder Price',
-    featured: true,
-    features: ['Unlimited saved prompt briefs', 'Premium template systems', 'PNG export workflow', 'Luau hierarchy notes', 'Priority beta invites'],
+    cadence: 'per month',
+    description: 'For solo Roblox creators shipping real UI exports every week.',
+    cta: 'Get started',
+    featured: false,
+    features: ['250 credits/mo (50 generations)', 'PNG + basic Luau export', '10 saved projects', 'Standard queue', 'All templates'],
   },
   {
-    name: 'Studio',
-    price: 'Custom',
-    cadence: 'for teams',
-    description: 'For studios standardizing UI production across multiple Roblox experiences.',
-    cta: 'Contact Team',
-    featured: false,
-    features: ['Shared style libraries', 'Team onboarding', 'Custom template packs', 'Roadmap input', 'Launch support'],
+    name: 'Pro',
+    price: '$49',
+    cadence: 'per month',
+    description: 'For high-volume creators who need priority generation and premium styles.',
+    cta: 'Get started',
+    featured: true,
+    features: ['1,000 credits/mo (200 generations)', 'Full Luau export', '100 saved projects', 'Priority queue', 'Premium styles', 'Advanced templates'],
   },
 ]
 
@@ -313,7 +312,7 @@ export const docsCategories = [
   },
   {
     title: 'Beta Operations',
-    copy: 'Understand waitlist access, founder pricing, support channels, and what changes during the preview period.',
+    copy: 'Understand account access, founder pricing, support channels, and what changes during the launch period.',
     links: ['Beta access', 'Founder plan', 'Support policy'],
   },
 ]
@@ -321,8 +320,9 @@ export const docsCategories = [
 export const contactChannels = [
   {
     title: 'Creator Access',
-    copy: 'Join the private beta if you are building a Roblox experience and need faster UI direction.',
-    action: 'Join waitlist below',
+    copy: 'Create an account if you are building a Roblox experience and need faster UI direction.',
+    action: 'Get started',
+    href: '/sign-up',
   },
   {
     title: 'Studio Partnerships',
@@ -331,7 +331,7 @@ export const contactChannels = [
   },
   {
     title: 'Support',
-    copy: 'Need help with auth, exports, or beta access? Send context and your account email.',
+    copy: 'Need help with auth, exports, or billing? Send context and your account email.',
     action: 'support@hudforge.app',
   },
 ]

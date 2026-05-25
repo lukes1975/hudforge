@@ -1,13 +1,20 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   assertGenerationStatus,
   createRepositoryBackedHudforgeService,
+  DEFAULT_RATE_LIMITS,
   exportLayoutToLuau,
   generateMockAssets,
   generationStatuses,
+  getQueueTierForUser,
+  getRateLimitsForUser,
   memoryHudforgeRepository,
   optimizePromptForRobloxUi,
+  parseFalResultToAsset,
+  PRIORITY_RATE_LIMITS,
+  submitAllFalJobs,
   type AssetBundle,
+  type HudforgeSubscription,
   type OptimizedGenerationSpec,
 } from '../lib/hudforge-generation'
 
@@ -25,9 +32,23 @@ function fakeFalAssetProvider(spec: OptimizedGenerationSpec): Promise<AssetBundl
       transparent: imagePrompt.transparent,
       provider: 'fal',
       prompt_used: imagePrompt.prompt,
+      content_type: 'image/png',
     })),
     errors: [],
   })
+}
+
+function activeProSubscription(userId: string): HudforgeSubscription {
+  const now = new Date().toISOString()
+  return {
+    id: `sub_${userId}`,
+    user_id: userId,
+    state: 'active_paid',
+    plan_id: 'pro',
+    cancel_at_period_end: false,
+    created_at: now,
+    updated_at: now,
+  }
 }
 
 describe('authenticated generation foundation', () => {
@@ -123,5 +144,71 @@ describe('authenticated generation foundation', () => {
       default_style: 'sci_fi',
       save_history: false,
     })
+  })
+
+  it('assigns priority queue tier to active pro subscribers', async () => {
+    const repo = memoryHudforgeRepository()
+    await repo.upsertSubscription(activeProSubscription('pro_user'))
+    expect(await getQueueTierForUser(repo, 'pro_user')).toBe('priority')
+    expect(await getRateLimitsForUser(repo, 'pro_user')).toEqual(PRIORITY_RATE_LIMITS)
+  })
+
+  it('assigns standard queue tier to free users', async () => {
+    const repo = memoryHudforgeRepository()
+    expect(await getQueueTierForUser(repo, 'free_user')).toBe('standard')
+    expect(await getRateLimitsForUser(repo, 'free_user')).toEqual(DEFAULT_RATE_LIMITS)
+  })
+
+  it('parses FAL PNG assets with transparent metadata', () => {
+    const spec = optimizePromptForRobloxUi({ prompt: 'Neon shop UI', ui_type: 'shop_ui', style: 'neon' })
+    const asset = parseFalResultToAsset({ images: [{ url: 'https://fal.media/files/panel.png', content_type: 'image/png' }] }, spec, 'main_frame')
+    expect(asset?.url).toContain('.png')
+    expect(asset?.content_type).toBe('image/png')
+    expect(asset?.transparent).toBe(true)
+  })
+
+  it('requests PNG output and submits sequentially for standard queue', async () => {
+    const originalKey = process.env.FAL_KEY
+    process.env.FAL_KEY = 'test-fal-key'
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ request_id: 'req_1', response_url: 'https://fal.run/poll/1' }), { status: 200 }))
+    const spec = optimizePromptForRobloxUi({ prompt: 'Standard queue shop UI', ui_type: 'shop_ui', style: 'neon' })
+
+    vi.useFakeTimers()
+    const promise = submitAllFalJobs(spec, { queueTier: 'standard', fetchImpl })
+    await vi.runAllTimersAsync()
+    const jobs = await promise
+    vi.useRealTimers()
+
+    expect(jobs).toHaveLength(5)
+    expect(fetchImpl).toHaveBeenCalledTimes(5)
+    const calls = fetchImpl.mock.calls as unknown as Array<[string, RequestInit]>
+    const firstBody = JSON.parse(String(calls[0][1].body))
+    expect(firstBody.output_format).toBe('png')
+
+    if (originalKey) process.env.FAL_KEY = originalKey
+    else delete process.env.FAL_KEY
+  })
+
+  it('submits FAL jobs in parallel for priority queue', async () => {
+    const originalKey = process.env.FAL_KEY
+    process.env.FAL_KEY = 'test-fal-key'
+    let inFlight = 0
+    let maxInFlight = 0
+    const fetchImpl = vi.fn(async () => {
+      inFlight += 1
+      maxInFlight = Math.max(maxInFlight, inFlight)
+      await Promise.resolve()
+      inFlight -= 1
+      return new Response(JSON.stringify({ request_id: 'req_1', response_url: 'https://fal.run/poll/1' }), { status: 200 })
+    })
+    const spec = optimizePromptForRobloxUi({ prompt: 'Priority queue shop UI', ui_type: 'shop_ui', style: 'premium' })
+
+    await submitAllFalJobs(spec, { queueTier: 'priority', fetchImpl })
+
+    expect(fetchImpl).toHaveBeenCalledTimes(5)
+    expect(maxInFlight).toBeGreaterThan(1)
+
+    if (originalKey) process.env.FAL_KEY = originalKey
+    else delete process.env.FAL_KEY
   })
 })

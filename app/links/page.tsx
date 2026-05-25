@@ -9,7 +9,7 @@ const launchChannels = [
     name: 'X / Twitter',
     handle: '@hudforgeapp',
     status: 'Pending activation',
-    purpose: 'Short-form launch clips, build-in-public updates, and waitlist CTAs.',
+    purpose: 'Short-form launch clips, build-in-public updates, and sign-up CTAs.',
     action: 'Activate with setup guide',
   },
   {
@@ -61,8 +61,8 @@ export default function LinksPage() {
         <PageHero
           eyebrow="Distribution"
           title="The launch map for every HUDForge touchpoint."
-          copy="Use this page as the public hub for launch channels, founder updates, and community surfaces. Until accounts are activated, the waitlist and docs remain the primary CTA."
-          primary={{ label: 'Join Waitlist', href: '/contact#waitlist' }}
+          copy="Use this page as the public hub for launch channels, founder updates, and community surfaces. Sign up and docs remain the primary CTAs."
+          primary={{ label: 'Get started', href: '/sign-up' }}
           secondary={{ label: 'Download Press Kit', href: '/press-kit/hudforge-press-kit.zip' }}
         />
 

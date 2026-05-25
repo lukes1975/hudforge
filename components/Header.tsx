@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { BrandMark } from '@/components/BrandMark'
 
@@ -70,9 +71,9 @@ export function Header() {
         </nav>
 
         <div className="header-actions">
-          <a href="#waitlist" className="primary-cta primary-cta--header px-5 text-sm font-semibold">
-            Join Private Beta
-          </a>
+          <Link href="/sign-up" className="primary-cta primary-cta--header px-5 text-sm font-semibold">
+            Get started
+          </Link>
           <button
             ref={menuButtonRef}
             type="button"
@@ -106,9 +107,9 @@ export function Header() {
               </a>
             ))}
           </nav>
-          <a href="#waitlist" className="primary-cta mt-8 w-full text-base font-semibold" onClick={closeMenu}>
-            Join Private Beta
-          </a>
+          <Link href="/sign-up" className="primary-cta mt-8 w-full text-base font-semibold" onClick={closeMenu}>
+            Get started
+          </Link>
         </div>
       </div>
     </header>

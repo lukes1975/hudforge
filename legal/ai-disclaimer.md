@@ -1,44 +1,51 @@
 # HUDForge AI Output Disclaimer
 
-**Effective Date:** [INSERT EFFECTIVE DATE]
+**Effective Date:** May 26, 2026
 
-**Last Updated:** [INSERT LAST UPDATED DATE]
+**Last Updated:** May 26, 2026
 
-This AI Output Disclaimer applies to all prompts, generated assets, previews, exports, Lua/Luau-related structures, and related outputs produced through HUDForge.
+This disclaimer applies to all AI-generated specs, PNG assets, previews, exports, Luau structures, and related output from HUDForge.
 
-## 1. Generated Assets Require Review
+## 1. Generated Output Is a Starting Point
 
-AI-generated output may contain errors, weak design choices, missing implementation details, or content that is technically unusable without revision. You must review all outputs before relying on them.
+HUDForge uses AI to help you move faster on Roblox UI work. Generated layouts, PNG assets, and export files are **starting points**, not finished production assets.
 
-## 2. No Guarantee of Uniqueness
+You must review, edit, test, and approve all output before shipping it in a live experience.
 
-AI systems may generate similar or identical output for different users. HUDForge does not guarantee that outputs are unique, protectable, or free from third-party similarity claims.
+## 2. No Guarantee of Quality or Uniqueness
 
-## 3. User Is Responsible for Testing and Implementation
+AI output may contain errors, weak design choices, missing details, or content that is not technically usable without revision. Similar or identical output may be generated for other users.
 
-You are solely responsible for:
+We do not guarantee that output is unique, protectable, non-infringing, or moderation-safe.
 
-- reviewing outputs for quality and safety;
-- checking technical fit for your Roblox experience or other use case;
-- testing exported assets, layout structure, Lua/Luau integration, and production behavior; and
-- confirming compliance with platform rules, legal obligations, and third-party rights.
+## 3. You Are Responsible for Roblox Compliance
 
-## 4. No Promise of Production Readiness
+You are solely responsible for ensuring that your prompts, generated assets, and final implementation comply with:
 
-HUDForge does not guarantee that generated outputs are production-ready, launch-ready, moderation-safe, accessible, or optimized for all devices or game states.
+- Roblox terms of use and community standards;
+- Roblox moderation and monetization rules;
+- intellectual property and branding rules; and
+- accessibility, performance, and device requirements for your experience.
 
-## 5. Intellectual Property and Platform Risk Remain With the User
+HUDForge is not affiliated with Roblox and does not certify compliance with Roblox policies.
 
-Output may raise copyright, trademark, trade dress, licensing, or platform-policy issues. You are responsible for evaluating those risks before use.
+## 4. Testing and Implementation
 
-## 6. No Professional Advice
+Before publishing, you should:
 
-HUDForge does not provide legal, engineering, accessibility, moderation, security, or business advice. Generated output should not be treated as a substitute for expert review.
+- test assets in Roblox Studio on target devices;
+- replace placeholder asset IDs with uploaded Roblox asset IDs;
+- verify text, layout, and interaction behavior; and
+- confirm the UI matches your game's tone and audience.
 
-## 7. Roblox-Specific Caution
+## 5. No Professional Advice
 
-HUDForge is not affiliated with Roblox and does not certify that any generated output complies with Roblox's rules, moderation systems, monetization rules, or technical constraints.
+HUDForge does not provide legal, engineering, accessibility, moderation, or business advice. Generated output is not a substitute for expert review.
 
-## 8. Contact
+## 6. Intellectual Property Risk
 
-For questions about output handling, contact **[INSERT SUPPORT EMAIL]**.
+Output may resemble third-party works, brands, or proprietary game UI. You are responsible for evaluating copyright, trademark, and platform-policy risk before use.
+
+## 7. Contact
+
+Questions about generated output: **support@hudforge.app**

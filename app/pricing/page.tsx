@@ -7,7 +7,7 @@ import { faqs, pricingPlans } from '@/lib/marketing-content'
 
 export const metadata: Metadata = {
   title: 'Pricing | HUDForge',
-  description: 'HUDForge beta pricing for Roblox creators, Forge Pro users, and studio teams.',
+  description: 'Simple USD pricing for Roblox UI creators. Free to start, upgrade when ready.',
 }
 
 export default function PricingPage() {
@@ -16,14 +16,14 @@ export default function PricingPage() {
       <main>
         <PageHero
           eyebrow="Pricing"
-          title="Founder-friendly pricing for Roblox UI teams."
-          copy="Start with beta access, then upgrade when HUDForge becomes part of your weekly production loop."
-          primary={{ label: 'Reserve Founder Price', href: '/contact#waitlist' }}
-          secondary={{ label: 'Contact Studio Team', href: '/contact' }}
+          title="Simple pricing for Roblox UI creators."
+          copy="Start free with 25 credits, then upgrade when HUDForge becomes part of your weekly production loop."
+          primary={{ label: 'Start free', href: '/sign-up' }}
+          secondary={{ label: 'Contact us', href: '/contact' }}
         >
           <div className="rune-card p-5">
-            <p className="data-label">Beta note</p>
-            <p className="mt-4 text-sm leading-7 text-slate-300">Pricing is intentionally simple while template activation, export success, and creator retention are validated.</p>
+            <p className="data-label">Credit top-ups available</p>
+            <p className="mt-4 text-sm leading-7 text-slate-300">Need more credits without changing plan? Buy one-time top-ups from $9.</p>
           </div>
         </PageHero>
 
@@ -43,7 +43,7 @@ export default function PricingPage() {
                     <li key={feature}>+ {feature}</li>
                   ))}
                 </ul>
-                <Link href={plan.name === 'Studio' ? '/contact' : '/contact#waitlist'} className={`forge-button mt-8 ${plan.featured ? 'forge-button--primary' : 'forge-button--secondary'}`}>
+                <Link href="/sign-up" className={`forge-button mt-8 ${plan.featured ? 'forge-button--primary' : 'forge-button--secondary'}`}>
                   {plan.cta}
                 </Link>
               </article>
@@ -51,9 +51,13 @@ export default function PricingPage() {
           </div>
           <div className="section-shell mt-6">
             <div className="rune-card border-white/10 bg-white/[0.03] p-5 text-sm leading-7 text-slate-300">
-              <p className="font-semibold text-white">Billing and launch policy links</p>
+              <p className="font-semibold text-white">Billing note</p>
               <p className="mt-3">
-                Before purchasing or joining paid access, review our{' '}
+                Prices in USD. Billed via Lemon Squeezy. See our{' '}
+                <Link href="/legal/refunds" className="premium-link">
+                  Refund Policy
+                </Link>
+                . Before purchasing, review our{' '}
                 <Link href="/legal/terms" className="premium-link">
                   Terms of Service
                 </Link>
@@ -62,8 +66,8 @@ export default function PricingPage() {
                   Privacy Policy
                 </Link>
                 , and{' '}
-                <Link href="/legal/refunds" className="premium-link">
-                  Refund Policy
+                <Link href="/legal/ai-disclaimer" className="premium-link">
+                  AI Output Disclaimer
                 </Link>
                 .
               </p>

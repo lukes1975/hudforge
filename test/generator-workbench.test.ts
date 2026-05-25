@@ -34,11 +34,10 @@ describe('generation workbench helpers', () => {
     expect(buildRegenerationPrompt('Create a futuristic shop UI', '   ')).toBe('Create a futuristic shop UI')
   })
 
-  it('knows when a legacy generation status is terminal', () => {
-    expect(isTerminalGenerationStatus('succeeded')).toBe(true)
+  it('knows when a generation status is terminal', () => {
+    expect(isTerminalGenerationStatus('exported')).toBe(true)
     expect(isTerminalGenerationStatus('failed')).toBe(true)
-    expect(isTerminalGenerationStatus('canceled')).toBe(true)
-    expect(isTerminalGenerationStatus('queued')).toBe(false)
-    expect(isTerminalGenerationStatus('processing')).toBe(false)
+    expect(isTerminalGenerationStatus('optimizing')).toBe(false)
+    expect(isTerminalGenerationStatus('generating_assets')).toBe(false)
   })
 })

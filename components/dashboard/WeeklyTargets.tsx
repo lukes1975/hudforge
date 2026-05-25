@@ -8,12 +8,12 @@ interface WeeklyTarget {
   endDate: string
   mrrTarget: number
   newUsersTarget: number
-  waitlistTarget: number
+  signupTarget: number
   activationsTarget: number
   paidConversionsTarget: number
   mrrActual?: number
   newUsersActual?: number
-  waitlistActual?: number
+  signupActual?: number
   activationsActual?: number
   paidConversionsActual?: number
 }
@@ -36,8 +36,8 @@ function buildWeeklyTargets(): WeeklyTarget[] {
 
     const weeklyPaidTarget = Math.ceil((weeklyMrrGrowth / 12.5) * 0.8)
     const weeklyActivationsTarget = Math.ceil(weeklyPaidTarget / 0.15)
-    const weeklyWaitlistTarget = Math.ceil(weeklyActivationsTarget / 0.2)
-    const weeklyNewUsersTarget = Math.ceil(weeklyWaitlistTarget / 0.15)
+    const weeklySignupTarget = Math.ceil(weeklyActivationsTarget / 0.2)
+    const weeklyNewUsersTarget = Math.ceil(weeklySignupTarget / 0.15)
 
     targets.push({
       week: `Week ${week}`,
@@ -45,12 +45,12 @@ function buildWeeklyTargets(): WeeklyTarget[] {
       endDate: weekEnd.toISOString().split('T')[0],
       mrrTarget: Math.min(Math.round(cumulativeMrr), targetMrr),
       newUsersTarget: Math.round(weeklyNewUsersTarget),
-      waitlistTarget: Math.round(weeklyWaitlistTarget),
+      signupTarget: Math.round(weeklySignupTarget),
       activationsTarget: Math.round(weeklyActivationsTarget),
       paidConversionsTarget: Math.round(weeklyPaidTarget),
       mrrActual: week <= 2 ? Math.round(cumulativeMrr * 0.3) : undefined,
       newUsersActual: week <= 2 ? Math.round(weeklyNewUsersTarget * 0.4) : undefined,
-      waitlistActual: week <= 2 ? Math.round(weeklyWaitlistTarget * 0.5) : undefined,
+      signupActual: week <= 2 ? Math.round(weeklySignupTarget * 0.5) : undefined,
       activationsActual: week <= 2 ? Math.round(weeklyActivationsTarget * 0.3) : undefined,
       paidConversionsActual: week <= 2 ? Math.round(weeklyPaidTarget * 0.2) : undefined,
     })
@@ -125,13 +125,13 @@ export default function WeeklyTargets() {
 
             <div>
               <div className="mb-1 flex justify-between text-sm">
-                <span className="text-gray-400">Waitlist Signups</span>
-                <span className="font-medium">{currentTarget.waitlistTarget}</span>
+                <span className="text-gray-400">Sign-ups</span>
+                <span className="font-medium">{currentTarget.signupTarget}</span>
               </div>
               <div className="h-3 overflow-hidden rounded-full bg-gray-700">
-                <div className={`h-full ${getProgressColor(calculateProgress(currentTarget.waitlistActual, currentTarget.waitlistTarget))}`} style={{ width: `${calculateProgress(currentTarget.waitlistActual, currentTarget.waitlistTarget)}%` }} />
+                <div className={`h-full ${getProgressColor(calculateProgress(currentTarget.signupActual, currentTarget.signupTarget))}`} style={{ width: `${calculateProgress(currentTarget.signupActual, currentTarget.signupTarget)}%` }} />
               </div>
-              <div className="mt-1 text-xs text-gray-500">{currentTarget.waitlistActual ? `${currentTarget.waitlistActual} actual` : 'No data yet'}</div>
+              <div className="mt-1 text-xs text-gray-500">{currentTarget.signupActual ? `${currentTarget.signupActual} actual` : 'No data yet'}</div>
             </div>
 
             <div>
@@ -172,8 +172,8 @@ export default function WeeklyTargets() {
               <div className="font-semibold">{nextWeekTarget.newUsersTarget}</div>
             </div>
             <div className="rounded-lg bg-gray-800/30 p-3">
-              <div className="text-gray-400">Waitlist Signups</div>
-              <div className="font-semibold">{nextWeekTarget.waitlistTarget}</div>
+              <div className="text-gray-400">Sign-ups</div>
+              <div className="font-semibold">{nextWeekTarget.signupTarget}</div>
             </div>
             <div className="rounded-lg bg-gray-800/30 p-3">
               <div className="text-gray-400">Paid Conversions</div>

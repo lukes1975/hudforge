@@ -19,50 +19,44 @@ const legalDocuments: LegalDocumentMeta[] = [
   {
     slug: 'terms',
     title: 'Terms of Service',
-    description: 'The terms governing use of HUDForge, including subscriptions, AI output, and account responsibilities.',
+    description: 'Subscription plans, credits, acceptable use, account termination, and liability limits for HUDForge.',
     fileName: 'terms.md',
   },
   {
     slug: 'privacy',
     title: 'Privacy Policy',
-    description: 'How HUDForge collects, uses, stores, and shares personal data across accounts, billing, analytics, and AI workflows.',
+    description: 'How HUDForge handles data across Clerk auth, Supabase storage, AI providers, Lemon Squeezy billing, and Sentry monitoring.',
     fileName: 'privacy.md',
-  },
-  {
-    slug: 'cookies',
-    title: 'Cookie Policy',
-    description: 'How HUDForge uses cookies and similar technologies for authentication, analytics, and site functionality.',
-    fileName: 'cookies.md',
-  },
-  {
-    slug: 'acceptable-use',
-    title: 'Acceptable Use Policy',
-    description: 'The rules that prohibit abusive, unlawful, unsafe, or infringing use of HUDForge.',
-    fileName: 'acceptable-use.md',
   },
   {
     slug: 'refunds',
     title: 'Refund Policy',
-    description: 'HUDForge refund expectations for subscriptions, billing errors, and cancellation handling.',
+    description: 'Refund rules for monthly subscriptions, non-refundable credit top-ups, and cancellation at period end.',
     fileName: 'refunds.md',
   },
   {
     slug: 'ai-disclaimer',
     title: 'AI Output Disclaimer',
-    description: 'The limits, risks, and user responsibilities that apply to HUDForge-generated output.',
+    description: 'Generated UI and PNG assets are starting points; you are responsible for Roblox compliance and testing.',
     fileName: 'ai-disclaimer.md',
+  },
+  {
+    slug: 'acceptable-use',
+    title: 'Acceptable Use Policy',
+    description: 'Rules against API abuse, credit circumvention, and unlawful or infringing use of HUDForge.',
+    fileName: 'acceptable-use.md',
+  },
+  {
+    slug: 'cookies',
+    title: 'Cookie Policy',
+    description: 'Clerk session cookies and optional Google Analytics 4 usage on hudforge.app.',
+    fileName: 'cookies.md',
   },
   {
     slug: 'dmca',
     title: 'Copyright / DMCA Policy',
-    description: 'How HUDForge handles copyright complaints, counter-notices, and repeat infringement.',
+    description: 'How to report copyright infringement and submit counter-notices.',
     fileName: 'dmca.md',
-  },
-  {
-    slug: 'compliance',
-    title: 'Contact & Compliance',
-    description: 'HUDForge public compliance contact details, launch-readiness notes, and legal integration guidance.',
-    fileName: 'compliance.md',
   },
 ]
 

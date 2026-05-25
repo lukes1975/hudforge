@@ -31,7 +31,7 @@ export function Pricing() {
             Early access pricing that rewards the first builders in.
           </h2>
           <p className="mt-5 text-lg leading-8 text-slate-300">
-            These tiers help shape the launch. Waitlist members lock in a stronger starting rate before public release.
+            These tiers help shape the launch. Early sign-ups lock in a stronger starting rate before public release.
           </p>
         </div>
 
@@ -72,7 +72,7 @@ export function Pricing() {
           ))}
         </div>
 
-        <div className="mt-10 text-sm text-slate-400">Final launch pricing will lock once the waitlist feedback loop is complete.</div>
+        <div className="mt-10 text-sm text-slate-400">Final launch pricing will lock once early creator feedback is complete.</div>
       </div>
     </section>
   )

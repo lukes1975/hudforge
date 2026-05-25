@@ -87,13 +87,13 @@ export function ProjectsPanel() {
             <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white">Generation history</h2>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">Live client surface backed by the existing authenticated history API. In this build the service is mock-safe server memory.</p>
           </div>
-          <Link href="/generate" className="forge-button forge-button--primary">New generation</Link>
+          <Link href="/dashboard" className="forge-button forge-button--primary">New generation</Link>
         </div>
 
         {loading ? <PanelMessage title="Loading generations" detail="Fetching /api/generations..." /> : null}
         {error ? <PanelMessage tone="error" title="History request failed" detail={error} /> : null}
         {!loading && !error && generations.length === 0 ? (
-          <PanelMessage title="No saved generations yet" detail="Run the /generate loop once. Optimized specs, assets, and exports will appear here after the API records them." action={<Link href="/generate" className="forge-button forge-button--secondary">Generate first UI</Link>} />
+          <PanelMessage title="No saved generations yet" detail="Create your first UI from the dashboard. Optimized specs, assets, and exports will appear here after the API records them." action={<Link href="/dashboard" className="forge-button forge-button--secondary">Create first UI</Link>} />
         ) : null}
 
         {generations.length > 0 ? (

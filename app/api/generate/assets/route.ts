@@ -14,6 +14,7 @@ export async function POST(request: Request) {
       generation,
       generation_id: generation.id,
       status: isGenerating ? 'assets_generating' : generation.asset_bundle?.status ?? generation.status,
+      queue_tier: generation.asset_bundle?.queue_tier ?? 'standard',
       request_ids: requestIds,
       assets: generation.asset_bundle?.assets ?? [],
       errors: generation.asset_bundle?.errors ?? [],

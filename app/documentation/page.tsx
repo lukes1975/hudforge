@@ -30,7 +30,7 @@ export default function DocumentationPage() {
                 <p className="mt-3 text-sm leading-7 text-slate-400">{category.copy}</p>
                 <div className="mt-6 grid gap-2">
                   {category.links.map((link) => (
-                    <Link key={link} href="/contact#waitlist" className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300 transition hover:border-cyan-300/30 hover:text-white">
+                    <Link key={link} href="/sign-up" className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-300 transition hover:border-cyan-300/30 hover:text-white">
                       {link}
                     </Link>
                   ))}

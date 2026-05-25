@@ -12,6 +12,7 @@ export async function POST(request: Request) {
       generation: result.generation,
       generation_id: result.generation.id,
       status: result.done ? result.generation.asset_bundle?.status ?? result.generation.status : 'assets_generating',
+      queue_tier: result.generation.asset_bundle?.queue_tier ?? 'standard',
       completed: result.completed,
       pending: result.pending,
       failed: result.failed,
