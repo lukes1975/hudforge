@@ -55,12 +55,9 @@ const DEFAULT_MODEL = 'black-forest-labs/flux-schnell'
 const MAX_PROMPT_LENGTH = 800
 const RETRY_DELAYS_MS = [250, 750, 1500]
 const GENERATION_TTL_MS = 1000 * 60 * 60
-const RATE_LIMIT_WINDOW_MS = 1000 * 60
-const RATE_LIMIT_MAX_REQUESTS = 8
 
 const generationStore = new Map<string, GenerationMetadata>()
 const mockStatuses = new Map<string, { createdAt: number; imageUrl: string }>()
-const rateLimitStore = new Map<string, { count: number; resetAt: number }>()
 
 export function validateGenerateRequest(body: GenerateRequestBody): { prompt: string; style?: string } {
   const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : ''
@@ -75,25 +72,6 @@ export function validateGenerateRequest(body: GenerateRequestBody): { prompt: st
   }
 
   return { prompt, style: style || undefined }
-}
-
-export function checkRateLimit(key: string): { remaining: number; resetAt: number } {
-  const now = Date.now()
-  const current = rateLimitStore.get(key)
-
-  if (!current || current.resetAt <= now) {
-    const resetAt = now + RATE_LIMIT_WINDOW_MS
-    rateLimitStore.set(key, { count: 1, resetAt })
-    return { remaining: RATE_LIMIT_MAX_REQUESTS - 1, resetAt }
-  }
-
-  if (current.count >= RATE_LIMIT_MAX_REQUESTS) {
-    const retryAfter = Math.ceil((current.resetAt - now) / 1000)
-    throw new ApiError('Rate limit exceeded', 429, 'rate_limited', retryAfter)
-  }
-
-  current.count += 1
-  return { remaining: RATE_LIMIT_MAX_REQUESTS - current.count, resetAt: current.resetAt }
 }
 
 export async function createGeneration(prompt: string, style?: string): Promise<GenerationResponse> {
@@ -259,12 +237,6 @@ function cleanupExpiredGenerations() {
     if (Date.parse(metadata.createdAt) + GENERATION_TTL_MS < now) {
       generationStore.delete(id)
       mockStatuses.delete(id)
-    }
-  }
-
-  for (const [key, bucket] of rateLimitStore) {
-    if (bucket.resetAt <= now) {
-      rateLimitStore.delete(key)
     }
   }
 }

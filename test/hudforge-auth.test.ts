@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 
+vi.mock('@clerk/nextjs/server', () => ({
+  auth: vi.fn(async () => ({ userId: null })),
+}))
+
+vi.mock('next/headers', () => ({
+  headers: vi.fn(async () => new Headers()),
+}))
+
 describe('local E2E auth bypass safety', () => {
   it('is disabled unless the explicit local env flag is set', async () => {
     vi.resetModules()

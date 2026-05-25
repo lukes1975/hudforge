@@ -50,7 +50,7 @@ describe('HUDForge durable analytics summary', () => {
   })
 
   it('does not depend on removed legacy analytics tables', () => {
-    const source = readFileSync('/home/herm/hudforge/lib/analytics.ts', 'utf8')
+    const source = readFileSync(new URL('../lib/analytics.ts', import.meta.url), 'utf8')
     for (const removedTable of ['mrr_snapshots', 'alert_definitions', 'alert_triggers', 'cohort_retention', 'revenue_events', 'user_sessions', "from('users')", "from('subscriptions')"]) {
       expect(source).not.toContain(removedTable)
     }

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { hudforgeError, requireHudforgeUser } from '@/lib/hudforge-api'
 import { ApiError, getGeneration } from '@/lib/generation'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await requireHudforgeUser()
     const { id } = await params
     const generation = await getGeneration(id)
 
@@ -11,7 +13,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       generation,
     })
   } catch (error) {
-    return handleApiError(error, 'Failed to fetch generation')
+    if (error instanceof ApiError) {
+      return handleApiError(error, 'Failed to fetch generation')
+    }
+    return hudforgeError(error, 'Failed to fetch generation')
   }
 }
 

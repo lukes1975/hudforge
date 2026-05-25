@@ -7,6 +7,10 @@ import { generationStyleOptions, generatorSamplePrompts, generationUiTypeOptions
 type ApiSuccess = {
   success: true
   generation: Generation
+  status?: string
+  completed?: Array<{ id: string; name: string }>
+  failed?: Array<{ name: string; error: string }>
+  done?: boolean
   exportPackage?: ExportPackagePayload
   export_package?: ExportPackagePayload
 }
@@ -36,6 +40,7 @@ export function GenerationWorkbench() {
   const [style, setStyle] = useState<(typeof generationStyleOptions)[number]['value']>('neon')
   const [status, setStatus] = useState<GenerationStatus>('idle')
   const [generation, setGeneration] = useState<Generation | null>(null)
+  const [assetProgress, setAssetProgress] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [downloaded, setDownloaded] = useState(false)
 
@@ -48,6 +53,7 @@ export function GenerationWorkbench() {
     event.preventDefault()
     setErrorMessage(null)
     setDownloaded(false)
+    setAssetProgress(null)
 
     try {
       setStatus('optimizing')
@@ -62,11 +68,25 @@ export function GenerationWorkbench() {
 
       setStatus('generating_assets')
       const assets = await postGenerationStep('/api/generate/assets', { generation_id: optimized.generation.id })
-      setGeneration({ ...assets.generation, status: 'preview_ready' })
+      const generationId = optimized.generation.id
+      const finalGeneration =
+        assets.status === 'assets_generating' || assets.generation.status === 'generating_assets'
+          ? await pollAssetGeneration(generationId, (completed, total) => {
+              setAssetProgress(`${completed}/${total} assets ready...`)
+            })
+          : assets.generation
+
+      if (finalGeneration.status === 'failed') {
+        throw new Error(finalGeneration.error ?? 'Asset generation failed')
+      }
+
+      setGeneration({ ...finalGeneration, status: 'preview_ready' })
       setStatus('assets_ready')
+      setAssetProgress(null)
       window.setTimeout(() => setStatus('preview_ready'), 180)
     } catch (error) {
       setStatus('failed')
+      setAssetProgress(null)
       setErrorMessage(error instanceof Error ? error.message : 'Generation failed')
     }
   }
@@ -102,6 +122,7 @@ export function GenerationWorkbench() {
     setStatus('idle')
     setGeneration(null)
     setErrorMessage(null)
+    setAssetProgress(null)
     setDownloaded(false)
   }
 
@@ -154,6 +175,7 @@ export function GenerationWorkbench() {
               </div>
             )
           })}
+          {status === 'generating_assets' && assetProgress ? <div className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm text-cyan-100">{assetProgress}</div> : null}
           {status === 'failed' ? <div className="rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-100">Failed — {errorMessage ?? 'inspect request output and retry'}</div> : null}
         </div>
 
@@ -229,4 +251,38 @@ async function postGenerationStep(url: string, body: unknown): Promise<ApiSucces
   const payload = (await response.json()) as ApiSuccess | ApiFailure
   if (!response.ok || !payload.success) throw new Error(payload.success ? 'Request failed' : payload.error.message)
   return payload
+}
+
+const ASSET_POLL_INTERVAL_MS = 3000
+const ASSET_POLL_TIMEOUT_MS = 120000
+const EXPECTED_ASSET_COUNT = 5
+
+async function pollAssetGeneration(generationId: string, onProgress?: (completed: number, total: number) => void): Promise<Generation> {
+  const deadline = Date.now() + ASSET_POLL_TIMEOUT_MS
+  let lastGeneration: Generation | null = null
+
+  while (Date.now() < deadline) {
+    const response = await fetch('/api/generate/assets/poll', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ generation_id: generationId }),
+    })
+    const payload = (await response.json()) as ApiSuccess | ApiFailure
+    if (!response.ok || !payload.success) throw new Error(payload.success ? 'Asset polling failed' : payload.error.message)
+
+    lastGeneration = payload.generation
+    const completedCount = payload.completed?.length ?? payload.generation.asset_bundle?.assets.length ?? 0
+    onProgress?.(completedCount, EXPECTED_ASSET_COUNT)
+
+    if (payload.done) {
+      if (payload.failed?.length) {
+        throw new Error(payload.generation.error ?? `Asset generation failed for ${payload.failed.map((item) => item.name).join(', ')}`)
+      }
+      return payload.generation
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, ASSET_POLL_INTERVAL_MS))
+  }
+
+  throw new Error(lastGeneration?.error ?? 'Asset generation timed out after 120 seconds')
 }

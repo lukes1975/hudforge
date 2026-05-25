@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { analyzeRobloxPrompt } from './prompts'
+import { resilientFetch, ResilientFetchError } from './fetch-utils'
 
 export const generationStatuses = [
   'idle',
@@ -39,7 +40,9 @@ export interface LuaInstanceSpec { id: string; class_name: RobloxInstanceClass; 
 export interface LuaSpec { screen_gui_name: string; root_instances: LuaInstanceSpec[] }
 export interface OptimizedGenerationSpec { generation_id: string; ui_type: UiType; style: GenerationStyle; intent_summary: string; asset_list: ['main_frame', 'primary_button', 'secondary_button', 'currency_icon', 'background_panel']; layout_spec: LayoutSpec; image_prompts: Record<string, ImagePromptSpec>; lua_spec: LuaSpec; constraints: { mobile_friendly: boolean; roblox_native: boolean; transparent_assets_preferred: boolean; deterministic_export_required: boolean } }
 export interface GeneratedAsset { id: string; name: string; type: AssetUse; url: string; width: number; height: number; transparent: boolean; provider: AssetProvider; prompt_used: string }
-export interface AssetBundle { generation_id: string; status: 'assets_ready'; assets: GeneratedAsset[]; errors: string[] }
+export interface FalAssetJob { name: string; request_id?: string; response_url: string; status: 'pending' | 'completed' | 'failed'; error?: string }
+export interface AssetBundle { generation_id: string; status: 'generating' | 'assets_ready' | 'failed'; assets: GeneratedAsset[]; errors: string[]; jobs?: FalAssetJob[]; credits_refunded?: boolean }
+export interface AssetPollResult { completed: GeneratedAsset[]; pending: FalAssetJob[]; failed: Array<{ name: string; error: string }>; done: boolean; generation: Generation }
 export interface ExportPackageFile { path: 'manifest.json' | 'layout.json' | 'code/MainUI.lua' | 'assets/assets.json' | 'README_IMPORT.md'; content_type: 'application/json' | 'text/x-lua' | 'text/markdown'; content?: string }
 export interface ExportPackageManifest { generation_id: string; format: 'zip' | 'json_payload'; files: ExportPackageFile[] }
 export interface ExportResponse { generation_id: string; status: 'exported'; package: ExportPackageManifest; download_url: string | null; limitations: string[] }
@@ -95,6 +98,7 @@ export interface HudforgeRepository {
   ensureInitialCredits(userId: string, credits: number): Promise<void>
   getCreditBalance(userId: string): Promise<number>
   addCreditLedgerEntry(userId: string, delta: number, reason: CreditLedgerEntry['reason'], generationId?: string, metadata?: Record<string, unknown>): Promise<CreditLedgerEntry>
+  atomicDebit?(userId: string, amount: number, reason: CreditLedgerEntry['reason'], generationId?: string, metadata?: Record<string, unknown>): Promise<CreditLedgerEntry>
   listCreditLedger(userId: string): Promise<CreditLedgerEntry[]>
   listUsageEvents(userId: string): Promise<UsageEventRecord[]>
   upsertSubscription(subscription: HudforgeSubscription): Promise<HudforgeSubscription>
@@ -135,11 +139,113 @@ export function createRepositoryBackedHudforgeService(repository: HudforgeReposi
         await repository.recordUsageEvent(userId, { name: 'preview_loaded', generation_id: generation.id })
         return updated
       } catch (error) {
-        await repository.addCreditLedgerEntry(userId, ASSET_CREDIT_COST, 'asset_generation_refund', generationId, { reason: error instanceof Error ? error.message : 'asset generation failed' })
+        await refundAssetCredits(repository, userId, generationId, generation.asset_bundle, error instanceof Error ? error.message : 'asset generation failed')
         await updateGeneration(repository, generation, { status: 'failed', error: error instanceof Error ? error.message : 'Asset generation failed' })
         await repository.recordUsageEvent(userId, { name: 'generation_failed', generation_id: generation.id, metadata: { stage: 'assets' } })
         throw error
       }
+    },
+
+    async submitAssetsForGeneration(userId: string, generationId: string): Promise<Generation> {
+      let generation = await requireGenerationFromRepo(repository, userId, generationId)
+      if (!generation.optimized_spec) throw new HudforgeServiceError('Generation must be optimized before assets are created', 409, 'layout_missing')
+      if (generation.status === 'assets_ready' || generation.status === 'preview_ready' || generation.status === 'exported') return generation
+      if (generation.status === 'generating_assets' && generation.asset_bundle?.jobs?.some((job) => job.status === 'pending')) return generation
+
+      await enforceRateLimit(repository, userId, 'asset_bundle', rateLimits.assetBundlesPerHour)
+      await ensureCredits(repository, userId)
+      await debitCredits(repository, userId, ASSET_CREDIT_COST, 'asset_generation', generationId, assetCostMetadata())
+
+      try {
+        const jobs = await submitAllFalJobs(generation.optimized_spec)
+        const asset_bundle: AssetBundle = { generation_id: generationId, status: 'generating', assets: [], errors: [], jobs }
+        generation = await updateGeneration(repository, generation, { status: 'generating_assets', asset_bundle })
+        await repository.recordUsageEvent(userId, { name: 'generation_started', generation_id: generationId, metadata: { stage: 'assets' } })
+        return generation
+      } catch (error) {
+        await refundAssetCredits(repository, userId, generationId, generation.asset_bundle, error instanceof Error ? error.message : 'asset submit failed')
+        await updateGeneration(repository, generation, { status: 'failed', error: error instanceof Error ? error.message : 'Asset submit failed' })
+        await repository.recordUsageEvent(userId, { name: 'generation_failed', generation_id: generationId, metadata: { stage: 'assets' } })
+        throw error
+      }
+    },
+
+    async pollAssetsForGeneration(userId: string, generationId: string): Promise<AssetPollResult> {
+      let generation = await requireGenerationFromRepo(repository, userId, generationId)
+      const bundle = generation.asset_bundle
+      if (!generation.optimized_spec) throw new HudforgeServiceError('Generation must be optimized before assets are created', 409, 'layout_missing')
+      if (generation.status === 'assets_ready' || generation.status === 'preview_ready') {
+        return { completed: bundle?.assets ?? [], pending: [], failed: [], done: true, generation }
+      }
+      if (!bundle?.jobs?.length) throw new HudforgeServiceError('No asset jobs in progress', 409, 'assets_not_submitted')
+
+      const falKey = requireFalKey()
+      const completed = [...(bundle.assets ?? [])]
+      const pending: FalAssetJob[] = []
+      const failed: Array<{ name: string; error: string }> = []
+      const updatedJobs: FalAssetJob[] = []
+
+      for (const job of bundle.jobs) {
+        if (job.status === 'completed') {
+          updatedJobs.push(job)
+          continue
+        }
+        if (job.status === 'failed') {
+          failed.push({ name: job.name, error: job.error ?? 'Asset generation failed' })
+          updatedJobs.push(job)
+          continue
+        }
+
+        const pollResult = await pollFalJobOnce(job, generation.optimized_spec, falKey)
+        if (pollResult.status === 'completed' && pollResult.asset) {
+          updatedJobs.push({ ...job, status: 'completed' })
+          completed.push(pollResult.asset)
+          continue
+        }
+        if (pollResult.status === 'failed') {
+          const failedJob = { ...job, status: 'failed' as const, error: pollResult.error ?? 'Asset generation failed' }
+          updatedJobs.push(failedJob)
+          failed.push({ name: job.name, error: failedJob.error })
+          continue
+        }
+
+        updatedJobs.push(job)
+        pending.push(job)
+      }
+
+      const allDone = pending.length === 0
+      if (allDone && failed.length === 0) {
+        const asset_bundle: AssetBundle = { generation_id: generationId, status: 'assets_ready', assets: completed, errors: [] }
+        generation = await updateGeneration(repository, generation, { status: 'assets_ready', asset_bundle })
+        await repository.recordUsageEvent(userId, { name: 'assets_generated', generation_id: generationId, metadata: assetCostMetadata() })
+        await repository.recordUsageEvent(userId, { name: 'preview_loaded', generation_id: generationId })
+        return { completed, pending: [], failed: [], done: true, generation }
+      }
+
+      if (allDone && failed.length > 0) {
+        const errorMessage = `Asset generation failed for ${failed.map((item) => item.name).join(', ')}`
+        await refundAssetCredits(repository, userId, generationId, bundle, errorMessage)
+        const asset_bundle: AssetBundle = {
+          generation_id: generationId,
+          status: 'failed',
+          assets: completed,
+          errors: failed.map((item) => `${item.name}: ${item.error}`),
+          jobs: updatedJobs,
+          credits_refunded: true,
+        }
+        generation = await updateGeneration(repository, generation, { status: 'failed', error: errorMessage, asset_bundle })
+        await repository.recordUsageEvent(userId, { name: 'generation_failed', generation_id: generationId, metadata: { stage: 'assets', failed_assets: failed.length } })
+        return { completed, pending: [], failed, done: true, generation }
+      }
+
+      const asset_bundle: AssetBundle = { generation_id: generationId, status: 'generating', assets: completed, errors: [], jobs: updatedJobs }
+      generation = await updateGeneration(repository, generation, { status: 'generating_assets', asset_bundle })
+      return { completed, pending, failed, done: false, generation }
+    },
+
+    async getAssetGenerationStatus(userId: string, generationId: string): Promise<Generation> {
+      const generation = await requireGenerationFromRepo(repository, userId, generationId)
+      return generation
     },
 
     async createExportForGeneration(userId: string, generationId: string): Promise<Generation> {
@@ -205,6 +311,23 @@ export function supabaseHudforgeRepository(): HudforgeRepository {
     async ensureInitialCredits(userId, credits) { const supabase = await client(); await ensureProfile(supabase, userId); const { data, error } = await supabase.from('hudforge_credit_ledger').select('id').eq('user_id', userId).eq('reason', 'initial_free_grant').limit(1); if (error) throw dbError(error, 'Failed to inspect credit ledger'); if (!data?.length) await this.addCreditLedgerEntry(userId, credits, 'initial_free_grant') },
     async getCreditBalance(userId) { await this.ensureInitialCredits(userId, INITIAL_FREE_CREDITS); const supabase = await client(); const { data, error } = await supabase.from('hudforge_credit_ledger').select('delta').eq('user_id', userId); if (error) throw dbError(error, 'Failed to load credit balance'); return (data ?? []).reduce((total, row: { delta: number }) => total + row.delta, 0) },
     async addCreditLedgerEntry(userId, delta, reason, generationId, metadata) { const supabase = await client(); await ensureProfile(supabase, userId); const { data: rows, error: balanceError } = await supabase.from('hudforge_credit_ledger').select('delta').eq('user_id', userId); if (balanceError) throw dbError(balanceError, 'Failed to load credit balance'); const balanceAfter = (rows ?? []).reduce((total, row: { delta: number }) => total + row.delta, 0) + delta; const row = { user_id: userId, delta, balance_after: balanceAfter, reason, generation_id: generationId ?? null, metadata: metadata ?? {} }; const { data, error } = await supabase.from('hudforge_credit_ledger').insert(row).select('*').single(); if (error) throw dbError(error, 'Failed to write credit ledger'); return data as CreditLedgerEntry },
+    async atomicDebit(userId, amount, reason, generationId, metadata) {
+      const supabase = await client()
+      await ensureProfile(supabase, userId)
+      const { data, error } = await supabase.rpc('debit_credits', {
+        p_user_id: userId,
+        p_amount: amount,
+        p_reason: reason,
+        p_generation_id: generationId ?? null,
+        p_metadata: metadata ?? {},
+      })
+      if (error) throw mapAtomicDebitError(error, amount)
+      const result = (Array.isArray(data) ? data[0] : data) as { new_balance: number; entry_id: string } | null
+      if (!result?.entry_id) throw new HudforgeServiceError('Failed to debit credits: missing ledger entry', 500, 'database_error')
+      const { data: entry, error: fetchError } = await supabase.from('hudforge_credit_ledger').select('*').eq('id', result.entry_id).single()
+      if (fetchError || !entry) throw dbError(fetchError ?? { message: 'ledger entry not found' }, 'Failed to load debited credit ledger entry')
+      return entry as CreditLedgerEntry
+    },
     async listCreditLedger(userId) { await this.ensureInitialCredits(userId, INITIAL_FREE_CREDITS); const supabase = await client(); const { data, error } = await supabase.from('hudforge_credit_ledger').select('*').eq('user_id', userId).order('created_at', { ascending: true }); if (error) throw dbError(error, 'Failed to list credit ledger'); return (data ?? []) as CreditLedgerEntry[] },
     async listUsageEvents(userId) { const supabase = await client(); const { data, error } = await supabase.from('hudforge_usage_events').select('user_id,event_name,generation_id,metadata,created_at').eq('user_id', userId).order('created_at', { ascending: true }); if (error) throw dbError(error, 'Failed to list usage events'); return (data ?? []).map((row: { user_id: string; event_name: UsageEventName; generation_id?: string | null; metadata?: Record<string, string | number | boolean>; created_at: string }) => ({ user_id: row.user_id, name: row.event_name, generation_id: row.generation_id ?? undefined, metadata: row.metadata ?? {}, created_at: row.created_at })) },
     async upsertSubscription(subscription) { const supabase = await client(); await ensureProfile(supabase, subscription.user_id); const existing = subscription.lemon_squeezy_subscription_id ? await supabase.from('hudforge_subscriptions').select('id').eq('lemon_squeezy_subscription_id', subscription.lemon_squeezy_subscription_id).maybeSingle() : { data: null, error: null }; if (existing.error) throw dbError(existing.error, 'Failed to inspect subscription'); const row = toSubscriptionRow(subscription); const query = existing.data?.id ? supabase.from('hudforge_subscriptions').update(row).eq('id', existing.data.id).select('*').single() : supabase.from('hudforge_subscriptions').insert(row).select('*').single(); const { data, error } = await query; if (error) throw dbError(error, 'Failed to persist subscription'); return fromSubscriptionRow(data) },
@@ -212,46 +335,145 @@ export function supabaseHudforgeRepository(): HudforgeRepository {
   }
 }
 
-const defaultRepository = process.env.SUPABASE_SERVICE_ROLE_KEY ? supabaseHudforgeRepository() : memoryHudforgeRepository()
-const defaultService = createRepositoryBackedHudforgeService(defaultRepository)
+function createDefaultRepository(): HudforgeRepository {
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return supabaseHudforgeRepository()
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is required in production. Cannot use in-memory repository.')
+  }
+  return memoryHudforgeRepository()
+}
+
+// Lazy initialization to avoid eager errors during module reset in tests
+let defaultRepositoryInstance: HudforgeRepository | undefined
+let defaultServiceInstance: ReturnType<typeof createRepositoryBackedHudforgeService> | undefined
+
+function getDefaultRepository(): HudforgeRepository {
+  if (!defaultRepositoryInstance) {
+    defaultRepositoryInstance = createDefaultRepository()
+  }
+  return defaultRepositoryInstance
+}
+
+function getDefaultService(): ReturnType<typeof createRepositoryBackedHudforgeService> {
+  if (!defaultServiceInstance) {
+    defaultServiceInstance = createRepositoryBackedHudforgeService(getDefaultRepository())
+  }
+  return defaultServiceInstance
+}
 
 export function validatePromptInput(input: OptimizeGenerationInput): { prompt: string; ui_type: UiType; style: GenerationStyle; user_settings: UserSettings } { const prompt = typeof input.prompt === 'string' ? input.prompt.trim() : ''; const ui_type = normalizeUiType(input.ui_type ?? input.uiType); const style = normalizeGenerationStyle(input.style); const user_settings = normalizeSettingsInput(input.user_settings); if (!prompt) throw new HudforgeServiceError('Prompt required', 400, 'prompt_required'); if (prompt.length > 900) throw new HudforgeServiceError('Prompt must be 900 characters or fewer', 400, 'prompt_too_long'); return { prompt, ui_type, style, user_settings } }
 export function optimizePromptForRobloxUi(input: OptimizeGenerationInput): OptimizedGenerationSpec { const { prompt, ui_type, style, user_settings } = validatePromptInput(input); const generation_id = `gen_${stableId(`${prompt}:${ui_type}:${style}`).slice(0, 12)}`; return buildOptimizedSpec(generation_id, prompt, ui_type, style, user_settings) }
-export const createOptimizedGeneration = (userId: string, input: OptimizeGenerationInput) => defaultService.createOptimizedGeneration(userId, input)
-export const createAssetsForGeneration = (userId: string, generationId: string) => defaultService.createAssetsForGeneration(userId, generationId)
-export const createExportForGeneration = (userId: string, generationId: string) => defaultService.createExportForGeneration(userId, generationId)
-export const listGenerations = (userId: string) => defaultService.listGenerations(userId)
-export const getSettings = (userId: string) => defaultService.getSettings(userId)
-export const updateSettings = (userId: string, input: Partial<UserSettings>) => defaultService.updateSettings(userId, input)
-export const recordUsageEvent = (userId: string, event: UsageEvent) => defaultService.recordUsageEvent(userId, event)
-export const getBillingStatus = (userId: string) => defaultService.getBillingStatus(userId)
+export const createOptimizedGeneration = (userId: string, input: OptimizeGenerationInput) => getDefaultService().createOptimizedGeneration(userId, input)
+export const createAssetsForGeneration = (userId: string, generationId: string) => getDefaultService().createAssetsForGeneration(userId, generationId)
+export const submitAssetsForGeneration = (userId: string, generationId: string) => getDefaultService().submitAssetsForGeneration(userId, generationId)
+export const pollAssetsForGeneration = (userId: string, generationId: string) => getDefaultService().pollAssetsForGeneration(userId, generationId)
+export const getAssetGenerationStatus = (userId: string, generationId: string) => getDefaultService().getAssetGenerationStatus(userId, generationId)
+export const createExportForGeneration = (userId: string, generationId: string) => getDefaultService().createExportForGeneration(userId, generationId)
+export const listGenerations = (userId: string) => getDefaultService().listGenerations(userId)
+export const getSettings = (userId: string) => getDefaultService().getSettings(userId)
+export const updateSettings = (userId: string, input: Partial<UserSettings>) => getDefaultService().updateSettings(userId, input)
+export const recordUsageEvent = (userId: string, event: UsageEvent) => getDefaultService().recordUsageEvent(userId, event)
+export const getBillingStatus = (userId: string) => getDefaultService().getBillingStatus(userId)
 
 export function generateMockAssets(spec: OptimizedGenerationSpec): GeneratedAsset[] { return Object.entries(spec.image_prompts).map(([name, imagePrompt]) => ({ id: `${name}_${stableId(`${spec.generation_id}:${name}`).slice(0, 8)}`, name, type: imagePrompt.intended_use, url: buildMockSvgDataUrl(spec, name, imagePrompt.intended_use), width: imagePrompt.intended_use === 'background' ? 1024 : 512, height: imagePrompt.intended_use === 'background' ? 1024 : 512, transparent: imagePrompt.transparent, provider: 'mock', prompt_used: imagePrompt.prompt })) }
 
 export async function generateFalAssetsForSpec(spec: OptimizedGenerationSpec): Promise<AssetBundle> {
-  const falKey = process.env.FAL_KEY
-  if (!falKey) throw new HudforgeServiceError('FAL_KEY is missing. Real asset generation is required; mock fallback is disabled for authenticated generation.', 503, 'fal_not_configured')
+  const falKey = requireFalKey()
+  const jobs = await submitAllFalJobs(spec)
   const assets: GeneratedAsset[] = []
-  for (const [name, imagePrompt] of Object.entries(spec.image_prompts)) {
-    assets.push(await generateSingleFalAsset(falKey, spec, name, imagePrompt))
+  for (const job of jobs) {
+    for (let attempt = 0; attempt < 90; attempt += 1) {
+      const pollResult = await pollFalJobOnce(job, spec, falKey)
+      if (pollResult.status === 'completed' && pollResult.asset) {
+        assets.push(pollResult.asset)
+        break
+      }
+      if (pollResult.status === 'failed') throw new HudforgeServiceError(pollResult.error ?? `fal.ai failed for ${job.name}`, 502, 'fal_poll_failed')
+      if (attempt < 89) await new Promise((resolve) => setTimeout(resolve, 2000))
+      else throw new HudforgeServiceError(`Timed out waiting for fal.ai asset generation for ${job.name}`, 504, 'fal_timeout')
+    }
   }
   return { generation_id: spec.generation_id, status: 'assets_ready', assets, errors: [] }
 }
 
-async function generateSingleFalAsset(falKey: string, spec: OptimizedGenerationSpec, name: string, imagePrompt: ImagePromptSpec): Promise<GeneratedAsset> {
-  const model = process.env.FAL_MODEL || process.env.FAL_IMAGE_MODEL || 'fal-ai/flux/dev'
-  const prompt = buildFalAssetPrompt(spec, name, imagePrompt)
-  const submitResponse = await fetch(`https://queue.fal.run/${model}`, { method: 'POST', headers: { Authorization: `Key ${falKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, negative_prompt: imagePrompt.negative_prompt, image_size: imagePrompt.intended_use === 'background' ? 'landscape_16_9' : 'square_hd', num_images: 1, enable_safety_checker: true }) })
-  if (!submitResponse.ok) throw new HudforgeServiceError(`fal.ai request failed for ${name} with status ${submitResponse.status}`, 502, 'fal_request_failed')
-  const queuePayload = (await submitResponse.json()) as { response_url?: string; error?: string }
-  if (!queuePayload.response_url) throw new HudforgeServiceError(`fal.ai did not return a response URL for ${name}`, 502, 'fal_response_url_missing')
-  const result = await waitForFalResult(queuePayload.response_url, falKey, name)
-  const image = result.images?.[0] ?? result.data?.images?.[0] ?? result.image
-  if (!image?.url) throw new HudforgeServiceError(`fal.ai returned no image URL for ${name}`, 502, 'fal_image_missing')
-  return { id: `${name}_${stableId(`${spec.generation_id}:${name}:${image.url}`).slice(0, 8)}`, name, type: imagePrompt.intended_use, url: image.url, width: imagePrompt.intended_use === 'background' ? 1344 : 1024, height: imagePrompt.intended_use === 'background' ? 768 : 1024, transparent: imagePrompt.transparent, provider: 'fal', prompt_used: prompt }
+function requireFalKey() {
+  const falKey = process.env.FAL_KEY
+  if (!falKey) throw new HudforgeServiceError('FAL_KEY is missing. Real asset generation is required; mock fallback is disabled for authenticated generation.', 503, 'fal_not_configured')
+  return falKey
 }
 
-async function waitForFalResult(responseUrl: string, falKey: string, name: string) { for (let attempt = 0; attempt < 90; attempt += 1) { if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 2000)); const response = await fetch(responseUrl, { headers: { Authorization: `Key ${falKey}` } }); if (response.ok) return (await response.json()) as { images?: Array<{ url?: string }>; image?: { url?: string }; data?: { images?: Array<{ url?: string }> } }; const body = await response.text(); if (response.status === 400 && body.toLowerCase().includes('still in progress')) continue; throw new HudforgeServiceError(`fal.ai polling failed for ${name} with status ${response.status}`, 502, 'fal_poll_failed') } throw new HudforgeServiceError(`Timed out waiting for fal.ai asset generation for ${name}`, 504, 'fal_timeout') }
+async function submitAllFalJobs(spec: OptimizedGenerationSpec): Promise<FalAssetJob[]> {
+  const falKey = requireFalKey()
+  const model = process.env.FAL_MODEL || process.env.FAL_IMAGE_MODEL || 'fal-ai/flux/dev'
+  const jobs = await Promise.all(
+    Object.entries(spec.image_prompts).map(async ([name, imagePrompt]) => {
+      const prompt = buildFalAssetPrompt(spec, name, imagePrompt)
+      const submitResponse = await resilientFetch(
+        `https://queue.fal.run/${model}`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Key ${falKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt,
+            negative_prompt: imagePrompt.negative_prompt,
+            image_size: imagePrompt.intended_use === 'background' ? 'landscape_16_9' : 'square_hd',
+            num_images: 1,
+            enable_safety_checker: true,
+          }),
+        },
+        { timeoutMs: 15_000, maxRetries: 1 }
+      )
+      if (!submitResponse.ok) throw new HudforgeServiceError(`fal.ai request failed for ${name} with status ${submitResponse.status}`, 502, 'fal_request_failed')
+      const queuePayload = (await submitResponse.json()) as { request_id?: string; response_url?: string; error?: string }
+      if (!queuePayload.response_url) throw new HudforgeServiceError(`fal.ai did not return a response URL for ${name}`, 502, 'fal_response_url_missing')
+      return { name, request_id: queuePayload.request_id, response_url: queuePayload.response_url, status: 'pending' as const }
+    })
+  )
+  return jobs
+}
+
+type FalPollJobResult = { status: 'pending' } | { status: 'completed'; asset: GeneratedAsset } | { status: 'failed'; error: string }
+
+async function pollFalJobOnce(job: FalAssetJob, spec: OptimizedGenerationSpec, falKey: string): Promise<FalPollJobResult> {
+  try {
+    const response = await resilientFetch(job.response_url, { headers: { Authorization: `Key ${falKey}` } }, { timeoutMs: 10_000, maxRetries: 0 })
+    if (response.ok) {
+      const result = (await response.json()) as { images?: Array<{ url?: string }>; image?: { url?: string }; data?: { images?: Array<{ url?: string }> } }
+      const asset = parseFalResultToAsset(result, spec, job.name)
+      if (!asset) return { status: 'failed', error: `fal.ai returned no image URL for ${job.name}` }
+      return { status: 'completed', asset }
+    }
+    const body = await response.text()
+    if (response.status === 400 && body.toLowerCase().includes('still in progress')) return { status: 'pending' }
+    return { status: 'failed', error: `fal.ai polling failed for ${job.name} with status ${response.status}` }
+  } catch (error) {
+    if (error instanceof ResilientFetchError && error.timedOut) return { status: 'pending' }
+    return { status: 'failed', error: error instanceof Error ? error.message : `fal.ai polling failed for ${job.name}` }
+  }
+}
+
+function parseFalResultToAsset(result: { images?: Array<{ url?: string }>; image?: { url?: string }; data?: { images?: Array<{ url?: string }> } }, spec: OptimizedGenerationSpec, name: string): GeneratedAsset | null {
+  const imagePrompt = spec.image_prompts[name]
+  if (!imagePrompt) return null
+  const image = result.images?.[0] ?? result.data?.images?.[0] ?? result.image
+  if (!image?.url) return null
+  const prompt = buildFalAssetPrompt(spec, name, imagePrompt)
+  return {
+    id: `${name}_${stableId(`${spec.generation_id}:${name}:${image.url}`).slice(0, 8)}`,
+    name,
+    type: imagePrompt.intended_use,
+    url: image.url,
+    width: imagePrompt.intended_use === 'background' ? 1344 : 1024,
+    height: imagePrompt.intended_use === 'background' ? 768 : 1024,
+    transparent: imagePrompt.transparent,
+    provider: 'fal',
+    prompt_used: prompt,
+  }
+}
+
+
 function buildFalAssetPrompt(spec: OptimizedGenerationSpec, name: string, imagePrompt: ImagePromptSpec) { return [`Roblox game UI production asset: ${name}.`, imagePrompt.prompt, `UI type: ${spec.ui_type}. Style: ${spec.style}.`, 'Clean game-world visual language, strong readable silhouette, no watermark, no tiny unreadable text, no random characters, no photorealism.', 'Designed as part of one coherent UI kit: main frame, button style, currency icon, panel/background, close/settings button.', imagePrompt.transparent ? 'Transparent PNG-style asset, isolated UI element, clean alpha edges.' : 'Backdrop/panel texture suitable for a browser preview and Roblox ScreenGui composition.'].join(' ') }
 
 
@@ -268,25 +490,29 @@ export function createOpenRouterGeminiOptimizer(options: { apiKey?: string; mode
   if (!apiKey) throw new HudforgeServiceError('OPENROUTER_API_KEY is missing. Real Gemini optimizer is not configured.', 503, 'openrouter_not_configured')
 
   return async (input) => {
-    const response = await fetchImpl('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.hudforge.app',
-        'X-Title': 'HUDForge',
+    const response = await resilientFetch(
+      'https://openrouter.ai/api/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.hudforge.app',
+          'X-Title': 'HUDForge',
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.25,
+          max_tokens: 2400,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: buildOptimizerSystemPrompt() },
+            { role: 'user', content: buildOptimizerUserPrompt(input) },
+          ],
+        }),
       },
-      body: JSON.stringify({
-        model,
-        temperature: 0.25,
-        max_tokens: 2400,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: buildOptimizerSystemPrompt() },
-          { role: 'user', content: buildOptimizerUserPrompt(input) },
-        ],
-      }),
-    })
+      { timeoutMs: 30_000, maxRetries: 2, fetchImpl }
+    )
 
     if (!response.ok) {
       const body = await safeResponseText(response)
@@ -447,7 +673,20 @@ function sanitizeRobloxName(value: string) { return toRobloxIdentifier(value).sl
 function clamp(value: number, min: number, max: number) { return Math.max(min, Math.min(max, value)) }
 
 async function ensureCredits(repository: HudforgeRepository, userId: string) { await repository.ensureInitialCredits(userId, INITIAL_FREE_CREDITS) }
-async function debitCredits(repository: HudforgeRepository, userId: string, amount: number, reason: CreditLedgerEntry['reason'], generationId?: string, metadata?: Record<string, unknown>) { const balance = await repository.getCreditBalance(userId); if (balance < amount) throw new HudforgeServiceError(`Insufficient credits. Required ${amount}, available ${balance}.`, 402, 'insufficient_credits', { required: amount, available: balance }); await repository.addCreditLedgerEntry(userId, -amount, reason, generationId, metadata) }
+async function debitCredits(repository: HudforgeRepository, userId: string, amount: number, reason: CreditLedgerEntry['reason'], generationId?: string, metadata?: Record<string, unknown>) {
+  if (repository.atomicDebit) {
+    await repository.atomicDebit(userId, amount, reason, generationId, metadata)
+    return
+  }
+  const balance = await repository.getCreditBalance(userId)
+  if (balance < amount) throw new HudforgeServiceError(`Insufficient credits. Required ${amount}, available ${balance}.`, 402, 'insufficient_credits', { required: amount, available: balance })
+  await repository.addCreditLedgerEntry(userId, -amount, reason, generationId, metadata)
+}
+
+async function refundAssetCredits(repository: HudforgeRepository, userId: string, generationId: string, bundle: AssetBundle | undefined, reason: string) {
+  if (bundle?.credits_refunded) return
+  await repository.addCreditLedgerEntry(userId, ASSET_CREDIT_COST, 'asset_generation_refund', generationId, { reason })
+}
 
 async function enforceRateLimit(repository: HudforgeRepository, userId: string, stage: 'optimizer' | 'asset_bundle', limit: number) {
   const windowSeconds = 3600
@@ -686,6 +925,16 @@ function buildMockSvgDataUrl(spec: OptimizedGenerationSpec, name: string, use: A
 function toGenerationRow(generation: Generation) { return { id: generation.id, user_id: generation.user_id, title: generation.title, prompt: generation.prompt, ui_type: generation.ui_type, style: generation.style, status: generation.status, optimized_spec: generation.optimized_spec ?? null, asset_bundle: generation.asset_bundle ?? null, export_package: generation.export_package ?? null, error: generation.error ?? null, created_at: generation.created_at, updated_at: generation.updated_at } }
 function fromGenerationRow(row: Record<string, unknown>): Generation { return { id: row.id as string, user_id: row.user_id as string, title: row.title as string, prompt: row.prompt as string, ui_type: row.ui_type as UiType, style: row.style as GenerationStyle, status: row.status as GenerationStatus, optimized_spec: (row.optimized_spec ?? undefined) as OptimizedGenerationSpec | undefined, asset_bundle: (row.asset_bundle ?? undefined) as AssetBundle | undefined, export_package: (row.export_package ?? undefined) as ExportPackagePayload | undefined, error: (row.error ?? undefined) as string | undefined, created_at: row.created_at as string, updated_at: row.updated_at as string } }
 function dbError(error: { message?: string }, message: string) { return new HudforgeServiceError(`${message}: ${error.message ?? 'database error'}`, 500, 'database_error') }
+function mapAtomicDebitError(error: { message?: string }, fallbackAmount: number) {
+  const message = error.message ?? ''
+  if (message.includes('insufficient_credits')) {
+    const match = message.match(/required (\d+), available (\d+)/)
+    const required = match ? Number(match[1]) : fallbackAmount
+    const available = match ? Number(match[2]) : 0
+    return new HudforgeServiceError(`Insufficient credits. Required ${required}, available ${available}.`, 402, 'insufficient_credits', { required, available })
+  }
+  return dbError(error, 'Failed to debit credits')
+}
 function stableId(value: string) { let hash = 2166136261; for (let index = 0; index < value.length; index += 1) { hash ^= value.charCodeAt(index); hash = Math.imul(hash, 16777619) } return (hash >>> 0).toString(36) }
 function slugify(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'hudforge-generation' }
 function toRobloxIdentifier(value: string) { const identifier = value.replace(/[^a-zA-Z0-9]+/g, ' ').split(' ').filter(Boolean).map((part) => part[0].toUpperCase() + part.slice(1)).join(''); return /^[A-Za-z]/.test(identifier) ? identifier : `Hudforge${identifier || 'UI'}` }
