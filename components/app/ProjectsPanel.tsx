@@ -2,12 +2,18 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { ExportPackagePayload, Generation } from '@/lib/hudforge-generation'
+import type { ExportPackagePayload, Generation, HudforgeProject } from '@/lib/hudforge-generation'
 import { buildGenerationExportSummary, formatGenerationStatus, formatGenerationStyle, formatGenerationTimestamp, formatUiType } from '@/lib/hudforge-client'
 
 type GenerationsResponse = {
   success: boolean
   generations?: Generation[]
+  error?: { message: string }
+}
+
+type ProjectsResponse = {
+  success: boolean
+  projects?: HudforgeProject[]
   error?: { message: string }
 }
 
@@ -21,6 +27,7 @@ type ExportResponse = {
 
 export function ProjectsPanel() {
   const [generations, setGenerations] = useState<Generation[]>([])
+  const [projects, setProjects] = useState<HudforgeProject[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [exportingId, setExportingId] = useState<string | null>(null)
@@ -28,27 +35,35 @@ export function ProjectsPanel() {
   const stats = useMemo(() => {
     const exported = generations.filter((generation) => generation.export_package).length
     const assetsReady = generations.filter((generation) => generation.asset_bundle).length
-    return { total: generations.length, exported, assetsReady }
-  }, [generations])
+    const lockedProjects = projects.filter((project) => project.style_profile).length
+    return { total: generations.length, exported, assetsReady, lockedProjects }
+  }, [generations, projects])
 
   useEffect(() => {
     let active = true
 
-    async function loadGenerations() {
+    async function loadData() {
       setLoading(true)
       setError(null)
       try {
-        const payload = await fetchJson<GenerationsResponse>('/api/generations')
-        if (!payload.success) throw new Error(payload.error?.message ?? 'Failed to load generations')
-        if (active) setGenerations(payload.generations ?? [])
+        const [generationsPayload, projectsPayload] = await Promise.all([
+          fetchJson<GenerationsResponse>('/api/generations'),
+          fetchJson<ProjectsResponse>('/api/projects'),
+        ])
+        if (!generationsPayload.success) throw new Error(generationsPayload.error?.message ?? 'Failed to load generations')
+        if (!projectsPayload.success) throw new Error(projectsPayload.error?.message ?? 'Failed to load projects')
+        if (active) {
+          setGenerations(generationsPayload.generations ?? [])
+          setProjects(projectsPayload.projects ?? [])
+        }
       } catch (loadError) {
-        if (active) setError(loadError instanceof Error ? loadError.message : 'Failed to load generations')
+        if (active) setError(loadError instanceof Error ? loadError.message : 'Failed to load project data')
       } finally {
         if (active) setLoading(false)
       }
     }
 
-    void loadGenerations()
+    void loadData()
     return () => {
       active = false
     }
@@ -74,11 +89,53 @@ export function ProjectsPanel() {
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-4">
         <StatCard label="Generations" value={String(stats.total)} detail="Loaded from GET /api/generations" />
         <StatCard label="Assets ready" value={String(stats.assetsReady)} detail="Mock or provider bundles attached" />
         <StatCard label="Exports" value={String(stats.exported)} detail="Package payloads available" />
+        <StatCard label="Style locks" value={String(stats.lockedProjects)} detail="Locked projects from GET /api/projects" />
       </section>
+
+      {projects.filter((project) => project.style_profile).length > 0 ? (
+        <section className="rune-card p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="section-kicker">Style lock</p>
+              <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white">Locked UI projects</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">Reuse these projects from the dashboard to generate additional screens with the same palette and art direction.</p>
+            </div>
+            <Link href="/dashboard" className="forge-button forge-button--primary">Generate in project</Link>
+          </div>
+
+          <div className="mt-6 grid gap-4 lg:grid-cols-2">
+            {projects.filter((project) => project.style_profile).map((project) => {
+              const profile = project.style_profile!
+              const projectGenerations = generations.filter((generation) => generation.project_id === project.id)
+              return (
+                <article key={project.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-xl font-semibold tracking-[-0.03em] text-white">{project.name}</h3>
+                      <p className="mt-2 text-sm text-slate-400">{formatGenerationStyle(profile.style)} · {projectGenerations.length} generation{projectGenerations.length === 1 ? '' : 's'}</p>
+                    </div>
+                    <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 text-xs font-semibold text-emerald-100">Locked</span>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {[profile.palette.primary, profile.palette.secondary, profile.palette.accent, profile.palette.background].map((color) => (
+                      <span key={color} className="inline-flex items-center gap-2 rounded-full border border-white/10 px-2.5 py-1 text-xs text-slate-300">
+                        <span className="h-3 w-3 rounded-full border border-white/20" style={{ backgroundColor: color }} />
+                        {color}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="mt-4 line-clamp-2 text-sm leading-6 text-slate-400">{profile.art_direction}</p>
+                  <p className="mt-3 font-mono text-xs text-slate-500">Locked {formatGenerationTimestamp(project.locked_at ?? project.updated_at)} · {project.id}</p>
+                </article>
+              )
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <section className="rune-card p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { Analytics } from '@/components/Analytics'
 import { ClerkProvider } from '@clerk/nextjs'
 import { headers } from 'next/headers'
-import { Geist_Mono, Inter, Space_Grotesk } from 'next/font/google'
+import { Bungee, Geist_Mono, Inter, Space_Grotesk } from 'next/font/google'
 import { getE2EAuthBypassHeaderName, getE2EAuthBypassUserId } from '@/lib/hudforge-auth'
 import './globals.css'
 
@@ -19,6 +19,12 @@ const spaceGrotesk = Space_Grotesk({
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
+})
+
+const bungee = Bungee({
+  variable: '--font-bungee',
+  subsets: ['latin'],
+  weight: '400',
 })
 
 export const metadata: Metadata = {
@@ -50,7 +56,7 @@ export default async function RootLayout({
   )
 
   return (
-    <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} ${geistMono.variable} ${bungee.variable} h-full antialiased`}>
       <body className="min-h-full bg-[color:var(--background)] text-white">
         {e2eBypassUserId ? content : <ClerkProvider>{content}</ClerkProvider>}
       </body>

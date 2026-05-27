@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import type { ExportPackagePayload, Generation, GenerationStatus, UiType } from '@/lib/hudforge-generation'
+import type { ExportPackagePayload, Generation, GenerationStatus, HudforgeProject, UiType } from '@/lib/hudforge-generation'
 import { generationStyleOptions, generatorSamplePrompts, generationUiTypeOptions } from '@/lib/generation-workbench'
 import { GenerationPreview } from '@/components/generator/GenerationPreview'
 
@@ -16,6 +16,8 @@ type ApiSuccess = {
   exportPackage?: ExportPackagePayload
   export_package?: ExportPackagePayload
   generations?: Generation[]
+  projects?: HudforgeProject[]
+  project?: HudforgeProject
 }
 
 type ApiFailure = {
@@ -40,10 +42,17 @@ const orderedStatuses: GenerationStatus[] = ['idle', 'optimizing', 'optimized', 
 const RESUMABLE_STATUSES: GenerationStatus[] = ['optimized', 'generating_assets']
 const GENERATE_IDLE_STATUSES: GenerationStatus[] = ['idle', 'assets_ready', 'preview_ready', 'exported', 'failed']
 
+const LOCKABLE_STATUSES: GenerationStatus[] = ['assets_ready', 'preview_ready', 'exported']
+
 export function GenerationWorkbench() {
   const [prompt, setPrompt] = useState('Create a neon anime simulator shop UI with coins, gems, buy buttons, and a close button. Make it mobile-friendly.')
   const [uiType, setUiType] = useState<UiType>('shop_ui')
   const [style, setStyle] = useState<(typeof generationStyleOptions)[number]['value']>('neon')
+  const [projectId, setProjectId] = useState<string>('')
+  const [projects, setProjects] = useState<HudforgeProject[]>([])
+  const [lockName, setLockName] = useState('')
+  const [isLockingStyle, setIsLockingStyle] = useState(false)
+  const [lockMessage, setLockMessage] = useState<string | null>(null)
   const [status, setStatus] = useState<GenerationStatus>('idle')
   const [generation, setGeneration] = useState<Generation | null>(null)
   const [assetProgress, setAssetProgress] = useState<string | null>(null)
@@ -58,8 +67,16 @@ export function GenerationWorkbench() {
   const mainLuau = useMemo(() => exportPackage?.files.find((file) => file.path === 'code/MainUI.lua')?.content, [exportPackage])
   const previewAssets = generation?.asset_bundle?.assets ?? []
   const optimizedSpec = generation?.optimized_spec
+  const selectedProject = useMemo(() => projects.find((project) => project.id === projectId) ?? null, [projects, projectId])
+  const lockedStyleActive = Boolean(selectedProject?.style_profile)
+  const canLockStyle = Boolean(generation && LOCKABLE_STATUSES.includes(status))
   const isPreviewGenerating = status === 'optimizing' || status === 'optimized' || status === 'generating_assets'
   const canGenerate = GENERATE_IDLE_STATUSES.includes(status) && !isSubmitting
+
+  useEffect(() => {
+    if (!selectedProject?.style_profile) return
+    setStyle(selectedProject.style_profile.style)
+  }, [selectedProject])
 
   useEffect(() => {
     let cancelled = false
@@ -80,10 +97,22 @@ export function GenerationWorkbench() {
     }
 
     void checkRecoverableGeneration()
+    void loadProjects()
     return () => {
       cancelled = true
     }
   }, [])
+
+  async function loadProjects() {
+    try {
+      const response = await fetch('/api/projects')
+      const payload = (await response.json()) as ApiSuccess | ApiFailure
+      if (!response.ok || !payload.success) return
+      setProjects(payload.projects ?? [])
+    } catch {
+      // Project list is best-effort on mount.
+    }
+  }
 
   async function runAssetStage(generationId: string, idempotencyKey: string) {
     setStatus('generating_assets')
@@ -131,6 +160,7 @@ export function GenerationWorkbench() {
           prompt,
           ui_type: uiType,
           style,
+          project_id: projectId || undefined,
           user_settings: { default_export_format: 'zip', mobile_first: true },
         },
         idempotencyKey
@@ -201,6 +231,43 @@ export function GenerationWorkbench() {
     }
   }
 
+  async function handleLockStyle() {
+    if (!generation || !canLockStyle || isLockingStyle) return
+
+    setIsLockingStyle(true)
+    setLockMessage(null)
+    setErrorMessage(null)
+
+    try {
+      const response = await fetch('/api/projects/lock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          generation_id: generation.id,
+          name: lockName.trim() || `${generation.title} Style Kit`,
+        }),
+      })
+      const payload = (await response.json()) as ApiSuccess | ApiFailure
+      if (!response.ok || !payload.success) throw new Error(payload.success ? 'Style lock failed' : payload.error.message)
+
+      const project = payload.project
+      if (project) {
+        setProjects((current) => {
+          const without = current.filter((item) => item.id !== project.id)
+          return [project, ...without]
+        })
+        setProjectId(project.id)
+        setLockName(project.name)
+      }
+      if (payload.generation) setGeneration(payload.generation)
+      setLockMessage(`Locked ${project?.style_profile?.style.replace('_', ' ') ?? 'style'} for ${project?.name ?? 'this project'}.`)
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Style lock failed')
+    } finally {
+      setIsLockingStyle(false)
+    }
+  }
+
   async function handleExport() {
     if (!generation) return
     setErrorMessage(null)
@@ -236,6 +303,7 @@ export function GenerationWorkbench() {
     setQueueTier(null)
     setDownloaded(false)
     setRecoverableGeneration(null)
+    setLockMessage(null)
     idempotencyKeyRef.current = null
   }
 
@@ -283,11 +351,30 @@ export function GenerationWorkbench() {
 
           <label className="block space-y-2">
             <span className="text-sm font-medium text-slate-200">Style</span>
-            <select value={style} onChange={(event) => setStyle(event.target.value as (typeof generationStyleOptions)[number]['value'])} className="w-full rounded-lg border border-white/10 bg-black/30 px-4 py-3 text-sm text-white focus:border-cyan-400/40 focus:outline-none focus:ring-2 focus:ring-cyan-400/20">
+            <select value={style} onChange={(event) => setStyle(event.target.value as (typeof generationStyleOptions)[number]['value'])} disabled={lockedStyleActive} className="w-full rounded-lg border border-white/10 bg-black/30 px-4 py-3 text-sm text-white focus:border-cyan-400/40 focus:outline-none focus:ring-2 focus:ring-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-60">
               {generationStyleOptions.map((option) => <option key={option.value} value={option.value} className="bg-slate-950 text-white">{option.label}</option>)}
             </select>
           </label>
         </div>
+
+        <label className="block space-y-2">
+          <span className="text-sm font-medium text-slate-200">Style-locked project</span>
+          <select value={projectId} onChange={(event) => setProjectId(event.target.value)} className="w-full rounded-lg border border-white/10 bg-black/30 px-4 py-3 text-sm text-white focus:border-cyan-400/40 focus:outline-none focus:ring-2 focus:ring-cyan-400/20">
+            <option value="" className="bg-slate-950 text-white">No project — generate freely</option>
+            {projects.filter((project) => project.style_profile).map((project) => (
+              <option key={project.id} value={project.id} className="bg-slate-950 text-white">
+                {project.name} ({project.style_profile?.style.replace('_', ' ')})
+              </option>
+            ))}
+          </select>
+          {lockedStyleActive && selectedProject?.style_profile ? (
+            <p className="text-xs leading-5 text-cyan-100/90">
+              Locked palette {selectedProject.style_profile.palette.primary} / {selectedProject.style_profile.palette.secondary}. New generations inherit this art direction.
+            </p>
+          ) : (
+            <p className="text-xs leading-5 text-slate-500">Lock style after preview or export to keep palette and art direction consistent across screens.</p>
+          )}
+        </label>
 
         <div className="grid gap-2">
           {orderedStatuses.map((item) => {
@@ -332,6 +419,27 @@ export function GenerationWorkbench() {
             title={generation?.title}
             isGenerating={isPreviewGenerating}
           />
+        </section>
+
+        <section className="rune-card p-5 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="section-kicker">Style lock</p>
+              <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white">Keep the same game UI kit</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">After preview or export, lock palette and art direction so inventory, HUD, and menu screens stay visually coherent.</p>
+            </div>
+            <button type="button" disabled={!canLockStyle || isLockingStyle} onClick={() => void handleLockStyle()} className="forge-button forge-button--secondary">
+              {isLockingStyle ? 'Locking...' : 'Lock style'}
+            </button>
+          </div>
+
+          <label className="mt-5 block space-y-2">
+            <span className="text-sm font-medium text-slate-200">Project name</span>
+            <input value={lockName} onChange={(event) => setLockName(event.target.value)} placeholder={generation ? `${generation.title} Style Kit` : 'My game UI kit'} className="w-full rounded-lg border border-white/10 bg-black/30 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-cyan-400/40 focus:outline-none focus:ring-2 focus:ring-cyan-400/20" />
+          </label>
+
+          {lockMessage ? <div className="mt-4 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-100">{lockMessage}</div> : null}
+          {!canLockStyle ? <p className="mt-4 text-sm text-slate-500">Generate through preview before locking style.</p> : null}
         </section>
 
         <section className="rune-card p-5 sm:p-6">

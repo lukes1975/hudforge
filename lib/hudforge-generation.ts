@@ -1,6 +1,17 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { analyzeRobloxPrompt } from './prompts'
 import { resilientFetch, ResilientFetchError } from './fetch-utils'
+import {
+  applyStyleProfileToOptimizedSpec,
+  assertGenerationCanBeStyleLocked,
+  buildStyleLockOptimizerContext,
+  buildStyleProfileFromSpec,
+  type HudforgeProject,
+  type StyleProfile,
+} from './style-lock'
+
+export type { HudforgeProject, StylePalette, StyleProfile } from './style-lock'
+export { STYLE_PALETTES, applyStyleProfileToOptimizedSpec, buildStyleProfileFromSpec } from './style-lock'
 
 export const generationStatuses = [
   'idle',
@@ -38,7 +49,7 @@ export interface LayoutSpec { canvas: { target: 'mobile' | 'desktop'; width: num
 export interface ImagePromptSpec { prompt: string; negative_prompt: string; transparent: boolean; intended_use: AssetUse }
 export interface LuaInstanceSpec { id: string; class_name: RobloxInstanceClass; name: string; parent: string; asset_ref: string | null; text: string | null; position: LayoutVector; size: LayoutVector; z_index: number }
 export interface LuaSpec { screen_gui_name: string; root_instances: LuaInstanceSpec[] }
-export interface OptimizedGenerationSpec { generation_id: string; ui_type: UiType; style: GenerationStyle; intent_summary: string; asset_list: ['main_frame', 'primary_button', 'secondary_button', 'currency_icon', 'background_panel']; layout_spec: LayoutSpec; image_prompts: Record<string, ImagePromptSpec>; lua_spec: LuaSpec; constraints: { mobile_friendly: boolean; roblox_native: boolean; transparent_assets_preferred: boolean; deterministic_export_required: boolean } }
+export interface OptimizedGenerationSpec { generation_id: string; ui_type: UiType; style: GenerationStyle; intent_summary: string; asset_list: ['main_frame', 'primary_button', 'secondary_button', 'currency_icon', 'background_panel']; layout_spec: LayoutSpec; image_prompts: Record<string, ImagePromptSpec>; lua_spec: LuaSpec; constraints: { mobile_friendly: boolean; roblox_native: boolean; transparent_assets_preferred: boolean; deterministic_export_required: boolean }; style_profile?: StyleProfile }
 export interface GeneratedAsset { id: string; name: string; type: AssetUse; url: string; width: number; height: number; transparent: boolean; provider: AssetProvider; prompt_used: string; content_type?: 'image/png' }
 export interface FalAssetJob { name: string; request_id?: string; response_url: string; status: 'pending' | 'completed' | 'failed'; error?: string }
 export type QueueTier = 'standard' | 'priority'
@@ -60,8 +71,9 @@ export type UsageEventName = 'generation_started' | 'prompt_optimized' | 'assets
 export interface UsageEvent { name: UsageEventName; generation_id?: string; generationId?: string; metadata?: Record<string, string | number | boolean> }
 export interface UsageEventRecord extends UsageEvent { user_id: string; created_at: string }
 export type HudforgeUsageEvent = UsageEvent
-export interface Generation { id: string; user_id: string; title: string; prompt: string; ui_type: UiType; style: GenerationStyle; status: GenerationStatus; created_at: string; updated_at: string; optimized_spec?: OptimizedGenerationSpec; asset_bundle?: AssetBundle; export_package?: ExportPackagePayload; error?: string; metadata?: Record<string, unknown> }
-export interface OptimizeGenerationInput { prompt: string; ui_type?: string; uiType?: string; style?: string; user_settings?: Partial<UserSettings>; idempotency_key?: string }
+export interface Generation { id: string; user_id: string; title: string; prompt: string; ui_type: UiType; style: GenerationStyle; status: GenerationStatus; created_at: string; updated_at: string; project_id?: string | null; optimized_spec?: OptimizedGenerationSpec; asset_bundle?: AssetBundle; export_package?: ExportPackagePayload; error?: string; metadata?: Record<string, unknown> }
+export interface OptimizeGenerationInput { prompt: string; ui_type?: string; uiType?: string; style?: string; user_settings?: Partial<UserSettings>; idempotency_key?: string; project_id?: string }
+export interface LockStyleInput { generation_id: string; name?: string; project_id?: string }
 export interface AssetGenerationInput { generation_id?: string; generationId?: string }
 export interface ExportGenerationInput { generation_id?: string; generationId?: string }
 export interface CreditLedgerEntry { id: string; user_id: string; delta: number; balance_after: number; reason: 'initial_free_grant' | 'generation_optimize' | 'asset_generation' | 'asset_generation_refund' | 'manual_adjustment'; generation_id?: string | null; metadata?: Record<string, unknown>; created_at: string }
@@ -94,7 +106,7 @@ export { billingPlans }
 const freePlan = billingPlans.free
 
 type FalAssetProvider = (spec: OptimizedGenerationSpec) => Promise<AssetBundle>
-export interface OptimizerProviderInput { generation_id: string; prompt: string; ui_type: UiType; style: GenerationStyle; user_settings: UserSettings }
+export interface OptimizerProviderInput { generation_id: string; prompt: string; ui_type: UiType; style: GenerationStyle; user_settings: UserSettings; style_profile?: StyleProfile }
 type OptimizerProvider = (input: OptimizerProviderInput) => Promise<OptimizedGenerationSpec>
 
 export class HudforgeServiceError extends Error {
@@ -118,6 +130,9 @@ export interface HudforgeRepository {
   findGenerationByIdempotencyKey(userId: string, idempotencyKey: string): Promise<Generation | null>
   upsertSubscription(subscription: HudforgeSubscription): Promise<HudforgeSubscription>
   listSubscriptions(userId: string): Promise<HudforgeSubscription[]>
+  upsertProject(project: HudforgeProject): Promise<HudforgeProject>
+  getProject(userId: string, projectId: string): Promise<HudforgeProject | null>
+  listProjects(userId: string): Promise<HudforgeProject[]>
 }
 
 export function createRepositoryBackedHudforgeService(repository: HudforgeRepository, deps: { assetProvider?: FalAssetProvider; optimizerProvider?: OptimizerProvider; rateLimits?: Partial<RateLimitPolicy> } = {}) {
@@ -138,19 +153,37 @@ export function createRepositoryBackedHudforgeService(repository: HudforgeReposi
       await ensureCredits(repository, userId)
       await debitCredits(repository, userId, OPTIMIZE_CREDIT_COST, 'generation_optimize', undefined, optimizerCostMetadata())
       const { prompt, ui_type, style, user_settings } = validatePromptInput(input)
+      const projectId = typeof input.project_id === 'string' ? input.project_id.trim() : ''
+      let styleProfile: StyleProfile | null = null
+      if (projectId) {
+        const project = await repository.getProject(userId, projectId)
+        if (!project) throw new HudforgeServiceError('Project not found', 404, 'project_not_found')
+        if (!project.style_profile) throw new HudforgeServiceError('Project has no locked style yet', 409, 'style_not_locked')
+        styleProfile = project.style_profile
+      }
+      const effectiveStyle = styleProfile?.style ?? style
       const now = new Date().toISOString()
-      const id = `gen_${stableId(`${userId}:${prompt}:${ui_type}:${style}:${now}`).slice(0, 12)}`
-      const optimized_spec = await optimizerProvider({ generation_id: id, prompt, ui_type, style, user_settings })
+      const id = `gen_${stableId(`${userId}:${prompt}:${ui_type}:${effectiveStyle}:${now}`).slice(0, 12)}`
+      let optimized_spec = await optimizerProvider({
+        generation_id: id,
+        prompt,
+        ui_type,
+        style: effectiveStyle,
+        user_settings,
+        style_profile: styleProfile ?? undefined,
+      })
+      if (styleProfile) optimized_spec = applyStyleProfileToOptimizedSpec(optimized_spec, styleProfile)
       const generation: Generation = {
         id,
         user_id: userId,
         title: buildTitle(prompt, ui_type),
         prompt,
         ui_type,
-        style,
+        style: effectiveStyle,
         status: 'optimized',
         created_at: now,
         updated_at: now,
+        project_id: projectId || null,
         optimized_spec,
         metadata: idempotencyKey ? { idempotency_key: idempotencyKey } : undefined,
       }
@@ -298,6 +331,49 @@ export function createRepositoryBackedHudforgeService(repository: HudforgeReposi
     },
 
     async listGenerations(userId: string) { return repository.listGenerations(userId) },
+    async listProjects(userId: string) { return repository.listProjects(userId) },
+    async lockStyleForGeneration(userId: string, input: LockStyleInput) {
+      const generationId = typeof input.generation_id === 'string' ? input.generation_id.trim() : ''
+      if (!generationId) throw new HudforgeServiceError('generation_id required', 400, 'generation_id_required')
+      const generation = await requireGenerationFromRepo(repository, userId, generationId)
+      try {
+        assertGenerationCanBeStyleLocked(generation.status)
+      } catch (error) {
+        throw new HudforgeServiceError(error instanceof Error ? error.message : 'Generation cannot be style locked', 409, 'style_lock_not_allowed')
+      }
+      if (!generation.optimized_spec) throw new HudforgeServiceError('Generation must be optimized before style lock', 409, 'layout_missing')
+      const premiumTier = (await getStyleTierForUser(repository, userId)) === 'premium'
+      const styleProfile = buildStyleProfileFromSpec(generation.optimized_spec, generation.id, { premiumTier })
+      const now = new Date().toISOString()
+      const existingProjectId = typeof input.project_id === 'string' ? input.project_id.trim() : ''
+      let project: HudforgeProject
+      if (existingProjectId) {
+        const existing = await repository.getProject(userId, existingProjectId)
+        if (!existing) throw new HudforgeServiceError('Project not found', 404, 'project_not_found')
+        project = await repository.upsertProject({
+          ...existing,
+          style_profile: styleProfile,
+          locked_at: now,
+          source_generation_id: generation.id,
+          updated_at: now,
+        })
+      } else {
+        const id = `proj_${stableId(`${userId}:${generation.id}:${now}`).slice(0, 12)}`
+        const name = typeof input.name === 'string' && input.name.trim() ? input.name.trim().slice(0, 80) : `${generation.title} Style Kit`
+        project = await repository.upsertProject({
+          id,
+          user_id: userId,
+          name,
+          style_profile: styleProfile,
+          locked_at: now,
+          source_generation_id: generation.id,
+          created_at: now,
+          updated_at: now,
+        })
+      }
+      const updatedGeneration = await updateGeneration(repository, generation, { project_id: project.id })
+      return { project, generation: updatedGeneration }
+    },
     async getSettings(userId: string) { return (await repository.getSettings(userId)) ?? defaultSettings },
     async updateSettings(userId: string, input: Partial<UserSettings>) { const settings = normalizeSettingsInput(input); await repository.upsertSettings(userId, settings); await repository.recordUsageEvent(userId, { name: 'settings_updated' }); return settings },
     async recordUsageEvent(userId: string, event: UsageEvent) { await repository.recordUsageEvent(userId, event) },
@@ -307,6 +383,7 @@ export function createRepositoryBackedHudforgeService(repository: HudforgeReposi
 
 export function memoryHudforgeRepository(options: { initialCredits?: number } = {}): HudforgeRepository {
   const generations = new Map<string, Generation>()
+  const projects = new Map<string, HudforgeProject>()
   const settingsByUser = new Map<string, UserSettings>()
   const usageEvents: UsageEventRecord[] = []
   const ledger: CreditLedgerEntry[] = []
@@ -333,6 +410,9 @@ export function memoryHudforgeRepository(options: { initialCredits?: number } = 
     },
     async upsertSubscription(subscription) { subscriptions.set(subscription.id, subscription); return subscription },
     async listSubscriptions(userId) { return Array.from(subscriptions.values()).filter((subscription) => subscription.user_id === userId).sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at)) },
+    async upsertProject(project) { projects.set(project.id, project); return project },
+    async getProject(userId, projectId) { const project = projects.get(projectId); return project?.user_id === userId ? project : null },
+    async listProjects(userId) { return Array.from(projects.values()).filter((project) => project.user_id === userId).sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at)) },
   }
 }
 
@@ -391,6 +471,9 @@ export function supabaseHudforgeRepository(): HudforgeRepository {
     },
     async upsertSubscription(subscription) { const supabase = await client(); await ensureProfile(supabase, subscription.user_id); const existing = subscription.lemon_squeezy_subscription_id ? await supabase.from('hudforge_subscriptions').select('id').eq('lemon_squeezy_subscription_id', subscription.lemon_squeezy_subscription_id).maybeSingle() : { data: null, error: null }; if (existing.error) throw dbError(existing.error, 'Failed to inspect subscription'); const row = toSubscriptionRow(subscription); const query = existing.data?.id ? supabase.from('hudforge_subscriptions').update(row).eq('id', existing.data.id).select('*').single() : supabase.from('hudforge_subscriptions').insert(row).select('*').single(); const { data, error } = await query; if (error) throw dbError(error, 'Failed to persist subscription'); return fromSubscriptionRow(data) },
     async listSubscriptions(userId) { const supabase = await client(); const { data, error } = await supabase.from('hudforge_subscriptions').select('*').eq('user_id', userId).order('updated_at', { ascending: false }); if (error) throw dbError(error, 'Failed to list subscriptions'); return (data ?? []).map(fromSubscriptionRow) },
+    async upsertProject(project) { const supabase = await client(); await ensureProfile(supabase, project.user_id); const { error } = await supabase.from('hudforge_projects').upsert(toProjectRow(project)); if (error) throw dbError(error, 'Failed to persist project'); return project },
+    async getProject(userId, projectId) { const supabase = await client(); const { data, error } = await supabase.from('hudforge_projects').select('*').eq('user_id', userId).eq('id', projectId).maybeSingle(); if (error) throw dbError(error, 'Failed to load project'); return data ? fromProjectRow(data) : null },
+    async listProjects(userId) { const supabase = await client(); const { data, error } = await supabase.from('hudforge_projects').select('*').eq('user_id', userId).order('updated_at', { ascending: false }); if (error) throw dbError(error, 'Failed to list projects'); return (data ?? []).map(fromProjectRow) },
   }
 }
 
@@ -431,6 +514,8 @@ export const pollAssetsForGeneration = (userId: string, generationId: string) =>
 export const getAssetGenerationStatus = (userId: string, generationId: string) => getDefaultService().getAssetGenerationStatus(userId, generationId)
 export const createExportForGeneration = (userId: string, generationId: string) => getDefaultService().createExportForGeneration(userId, generationId)
 export const listGenerations = (userId: string) => getDefaultService().listGenerations(userId)
+export const listProjects = (userId: string) => getDefaultService().listProjects(userId)
+export const lockStyleForGeneration = (userId: string, input: LockStyleInput) => getDefaultService().lockStyleForGeneration(userId, input)
 export const getSettings = (userId: string) => getDefaultService().getSettings(userId)
 export const updateSettings = (userId: string, input: Partial<UserSettings>) => getDefaultService().updateSettings(userId, input)
 export const recordUsageEvent = (userId: string, event: UsageEvent) => getDefaultService().recordUsageEvent(userId, event)
@@ -783,7 +868,7 @@ function buildOptimizerSystemPrompt() {
 }
 
 function buildOptimizerUserPrompt(input: OptimizerProviderInput) {
-  return JSON.stringify({
+  const base = {
     task: 'Create a Roblox UI generation spec as JSON only.',
     output_skeleton: {
       intent_summary: 'string',
@@ -811,7 +896,9 @@ function buildOptimizerUserPrompt(input: OptimizerProviderInput) {
     ui_type: input.ui_type,
     style: input.style,
     mobile_first: input.user_settings.mobile_first,
-  })
+  }
+  if (input.style_profile) return JSON.stringify({ ...base, ...buildStyleLockOptimizerContext(input.style_profile) })
+  return JSON.stringify(base)
 }
 
 async function safeResponseText(response: Response) {
@@ -836,6 +923,14 @@ async function debitCredits(repository: HudforgeRepository, userId: string, amou
 async function refundAssetCredits(repository: HudforgeRepository, userId: string, generationId: string, bundle: AssetBundle | undefined, reason: string) {
   if (bundle?.credits_refunded) return
   await repository.addCreditLedgerEntry(userId, ASSET_CREDIT_COST, 'asset_generation_refund', generationId, { reason })
+}
+
+export async function getStyleTierForUser(repository: HudforgeRepository, userId: string): Promise<'basic' | 'premium'> {
+  const subscriptions = await repository.listSubscriptions(userId)
+  const activeSubscription = subscriptions.find((subscription) => subscription.state === 'active_paid' || subscription.state === 'trial')
+  if (!activeSubscription) return 'basic'
+  const plan = billingPlans[activeSubscription.plan_id]
+  return plan.entitlements?.style_tier ?? 'basic'
 }
 
 export async function getQueueTierForUser(repository: HudforgeRepository, userId: string): Promise<QueueTier> {
@@ -1215,8 +1310,10 @@ function normalizeGenerationStyle(value?: string): GenerationStyle { if (value =
 function paletteForStyle(style: GenerationStyle) { const palettes: Record<GenerationStyle, { background: string; panel: string; accent: string; text: string }> = { neon: { background: '#090A1A', panel: '#15122B', accent: '#B46CFF', text: '#F3E8FF' }, cartoon: { background: '#102033', panel: '#23415E', accent: '#FFCD4D', text: '#FFFFFF' }, sci_fi: { background: '#08111F', panel: '#132033', accent: '#5BE7FF', text: '#EAF7FF' }, anime: { background: '#16091F', panel: '#281237', accent: '#FF79C6', text: '#FFF4FB' }, minimal: { background: '#0B1020', panel: '#1F2937', accent: '#CBD5E1', text: '#F8FAFC' }, premium: { background: '#09090B', panel: '#18181B', accent: '#D4AF37', text: '#FAFAFA' } }; return palettes[style] }
 function buildTitle(prompt: string, uiType: UiType) { const analysis = analyzeRobloxPrompt(prompt, uiType); const tokens = analysis.tokens.filter((token) => !['a', 'an', 'the', 'for', 'with', 'make', 'create', 'build', 'design', 'ui'].includes(token)).slice(0, 3); const fallback = uiType.replace('_', ' '); const title = tokens.length ? tokens.map((token) => token[0].toUpperCase() + token.slice(1)).join(' ') : fallback; return `${title} ${uiType === 'hud' ? 'HUD' : 'UI'}` }
 function buildMockSvgDataUrl(spec: OptimizedGenerationSpec, name: string, use: AssetUse) { const palette = paletteForStyle(spec.style); const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><rect width="1024" height="1024" rx="112" fill="${palette.background}"/><rect x="144" y="208" width="736" height="608" rx="68" fill="${palette.panel}" stroke="${palette.accent}" stroke-width="16"/><circle cx="512" cy="512" r="144" fill="${palette.accent}" opacity="0.74"/><text x="512" y="896" text-anchor="middle" fill="${palette.text}" font-family="Arial" font-size="54" font-weight="700">${escapeXml(name.toUpperCase())}</text><text x="512" y="130" text-anchor="middle" fill="${palette.text}" font-family="Arial" font-size="36" font-weight="700">${escapeXml(use.toUpperCase())}</text></svg>`; return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}` }
-function toGenerationRow(generation: Generation) { return { id: generation.id, user_id: generation.user_id, title: generation.title, prompt: generation.prompt, ui_type: generation.ui_type, style: generation.style, status: generation.status, optimized_spec: generation.optimized_spec ?? null, asset_bundle: generation.asset_bundle ?? null, export_package: generation.export_package ?? null, error: generation.error ?? null, metadata: generation.metadata ?? {}, created_at: generation.created_at, updated_at: generation.updated_at } }
-function fromGenerationRow(row: Record<string, unknown>): Generation { return { id: row.id as string, user_id: row.user_id as string, title: row.title as string, prompt: row.prompt as string, ui_type: row.ui_type as UiType, style: row.style as GenerationStyle, status: row.status as GenerationStatus, optimized_spec: (row.optimized_spec ?? undefined) as OptimizedGenerationSpec | undefined, asset_bundle: (row.asset_bundle ?? undefined) as AssetBundle | undefined, export_package: (row.export_package ?? undefined) as ExportPackagePayload | undefined, error: (row.error ?? undefined) as string | undefined, metadata: (row.metadata ?? undefined) as Record<string, unknown> | undefined, created_at: row.created_at as string, updated_at: row.updated_at as string } }
+function toGenerationRow(generation: Generation) { return { id: generation.id, user_id: generation.user_id, title: generation.title, prompt: generation.prompt, ui_type: generation.ui_type, style: generation.style, status: generation.status, project_id: generation.project_id ?? null, optimized_spec: generation.optimized_spec ?? null, asset_bundle: generation.asset_bundle ?? null, export_package: generation.export_package ?? null, error: generation.error ?? null, metadata: generation.metadata ?? {}, created_at: generation.created_at, updated_at: generation.updated_at } }
+function fromGenerationRow(row: Record<string, unknown>): Generation { return { id: row.id as string, user_id: row.user_id as string, title: row.title as string, prompt: row.prompt as string, ui_type: row.ui_type as UiType, style: row.style as GenerationStyle, status: row.status as GenerationStatus, project_id: (row.project_id ?? null) as string | null, optimized_spec: (row.optimized_spec ?? undefined) as OptimizedGenerationSpec | undefined, asset_bundle: (row.asset_bundle ?? undefined) as AssetBundle | undefined, export_package: (row.export_package ?? undefined) as ExportPackagePayload | undefined, error: (row.error ?? undefined) as string | undefined, metadata: (row.metadata ?? undefined) as Record<string, unknown> | undefined, created_at: row.created_at as string, updated_at: row.updated_at as string } }
+function toProjectRow(project: HudforgeProject) { return { id: project.id, user_id: project.user_id, name: project.name, style_profile: project.style_profile, locked_at: project.locked_at, source_generation_id: project.source_generation_id, created_at: project.created_at, updated_at: project.updated_at } }
+function fromProjectRow(row: Record<string, unknown>): HudforgeProject { return { id: row.id as string, user_id: row.user_id as string, name: row.name as string, style_profile: (row.style_profile ?? null) as StyleProfile | null, locked_at: (row.locked_at ?? null) as string | null, source_generation_id: (row.source_generation_id ?? null) as string | null, created_at: row.created_at as string, updated_at: row.updated_at as string } }
 function dbError(error: { message?: string }, message: string) { return new HudforgeServiceError(`${message}: ${error.message ?? 'database error'}`, 500, 'database_error') }
 function mapAtomicDebitError(error: { message?: string }, fallbackAmount: number) {
   const message = error.message ?? ''
