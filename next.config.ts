@@ -2,6 +2,9 @@ import * as path from 'node:path'
 import { withSentryConfig } from '@sentry/nextjs'
 import type { NextConfig } from 'next'
 
+// CSP is set per-request in proxy.ts via clerkMiddleware({ contentSecurityPolicy }).
+// Static CSP in next.config blocked Next.js inline bootstrap scripts (no unsafe-inline / nonce).
+
 const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
@@ -9,22 +12,6 @@ const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
-  {
-    key: 'Content-Security-Policy',
-    value: [
-      "default-src 'self'",
-      "script-src 'self' https://*.clerk.com https://clerk.com https://www.googletagmanager.com",
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://*.fal.ai https://img.clerk.com",
-      "connect-src 'self' https://*.clerk.com https://*.supabase.co https://api.lemonsqueezy.com https://openrouter.ai https://fal.ai https://*.fal.ai https://*.ingest.sentry.io https://*.sentry.io",
-      "frame-src 'self' https://*.lemonsqueezy.com",
-      "font-src 'self'",
-      "object-src 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-      "frame-ancestors 'none'",
-    ].join('; '),
-  },
 ]
 
 const nextConfig: NextConfig = {

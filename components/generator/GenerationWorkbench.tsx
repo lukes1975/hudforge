@@ -1,21 +1,15 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import type { ExportPackagePayload, Generation, GenerationStatus, HudforgeProject, UiType } from '@/lib/hudforge-generation'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import type { ExportPackagePayload, GenerationStatus, HudforgeProject, UiType } from '@/lib/hudforge-generation'
 import { generationStyleOptions, generatorSamplePrompts, generationUiTypeOptions } from '@/lib/generation-workbench'
+import { postGenerationStep } from '@/lib/generation-api'
+import { useGenerationFlow } from '@/lib/use-generation-flow'
 import { GenerationPreview } from '@/components/generator/GenerationPreview'
 
 type ApiSuccess = {
   success: true
-  generation: Generation
-  status?: string
-  queue_tier?: 'standard' | 'priority'
-  completed?: Array<{ id: string; name: string }>
-  failed?: Array<{ name: string; error: string }>
-  done?: boolean
-  exportPackage?: ExportPackagePayload
-  export_package?: ExportPackagePayload
-  generations?: Generation[]
+  generation: import('@/lib/hudforge-generation').Generation
   projects?: HudforgeProject[]
   project?: HudforgeProject
 }
@@ -39,12 +33,26 @@ const statusCopy: Record<GenerationStatus, string> = {
 
 const orderedStatuses: GenerationStatus[] = ['idle', 'optimizing', 'optimized', 'generating_assets', 'assets_ready', 'preview_ready', 'exporting', 'exported']
 
-const RESUMABLE_STATUSES: GenerationStatus[] = ['optimized', 'generating_assets']
 const GENERATE_IDLE_STATUSES: GenerationStatus[] = ['idle', 'assets_ready', 'preview_ready', 'exported', 'failed']
-
 const LOCKABLE_STATUSES: GenerationStatus[] = ['assets_ready', 'preview_ready', 'exported']
 
 export function GenerationWorkbench() {
+  const {
+    status,
+    generation,
+    assetProgress,
+    queueTier,
+    errorMessage,
+    isSubmitting,
+    recoverableGeneration,
+    runGeneration,
+    resumeGeneration,
+    reset,
+    setStatus,
+    setGeneration,
+    setErrorMessage,
+  } = useGenerationFlow({ checkRecoverable: true })
+
   const [prompt, setPrompt] = useState('Create a neon anime simulator shop UI with coins, gems, buy buttons, and a close button. Make it mobile-friendly.')
   const [uiType, setUiType] = useState<UiType>('shop_ui')
   const [style, setStyle] = useState<(typeof generationStyleOptions)[number]['value']>('neon')
@@ -53,15 +61,7 @@ export function GenerationWorkbench() {
   const [lockName, setLockName] = useState('')
   const [isLockingStyle, setIsLockingStyle] = useState(false)
   const [lockMessage, setLockMessage] = useState<string | null>(null)
-  const [status, setStatus] = useState<GenerationStatus>('idle')
-  const [generation, setGeneration] = useState<Generation | null>(null)
-  const [assetProgress, setAssetProgress] = useState<string | null>(null)
-  const [queueTier, setQueueTier] = useState<'standard' | 'priority' | null>(null)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [downloaded, setDownloaded] = useState(false)
-  const [recoverableGeneration, setRecoverableGeneration] = useState<Generation | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const idempotencyKeyRef = useRef<string | null>(null)
 
   const exportPackage = generation?.export_package
   const mainLuau = useMemo(() => exportPackage?.files.find((file) => file.path === 'code/MainUI.lua')?.content, [exportPackage])
@@ -79,28 +79,7 @@ export function GenerationWorkbench() {
   }, [selectedProject])
 
   useEffect(() => {
-    let cancelled = false
-
-    async function checkRecoverableGeneration() {
-      try {
-        const response = await fetch('/api/generations')
-        const payload = (await response.json()) as ApiSuccess | ApiFailure
-        if (!response.ok || !payload.success || cancelled) return
-
-        const latest = payload.generations?.[0]
-        if (latest && RESUMABLE_STATUSES.includes(latest.status)) {
-          setRecoverableGeneration(latest)
-        }
-      } catch {
-        // Recovery is best-effort on mount.
-      }
-    }
-
-    void checkRecoverableGeneration()
     void loadProjects()
-    return () => {
-      cancelled = true
-    }
   }, [])
 
   async function loadProjects() {
@@ -114,121 +93,28 @@ export function GenerationWorkbench() {
     }
   }
 
-  async function runAssetStage(generationId: string, idempotencyKey: string) {
-    setStatus('generating_assets')
-    const assets = await postGenerationStep('/api/generate/assets', { generation_id: generationId }, idempotencyKey)
-    const tier = assets.queue_tier ?? assets.generation.asset_bundle?.queue_tier ?? 'standard'
-    setQueueTier(tier)
-
-    const finalGeneration =
-      assets.status === 'assets_generating' || assets.generation.status === 'generating_assets'
-        ? await pollAssetGeneration(generationId, tier, (completed, total) => {
-            setAssetProgress(`Asset ${completed}/${total} ready`)
-          })
-        : assets.generation
-
-    if (finalGeneration.status === 'failed') {
-      throw new Error(finalGeneration.error ?? 'Asset generation failed')
-    }
-
-    setGeneration({ ...finalGeneration, status: 'preview_ready' })
-    setStatus('assets_ready')
-    setAssetProgress(null)
-    setQueueTier(null)
-    window.setTimeout(() => setStatus('preview_ready'), 180)
-  }
-
   async function handleGenerate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (isSubmitting || !canGenerate) return
 
-    setIsSubmitting(true)
-    setErrorMessage(null)
     setDownloaded(false)
-    setAssetProgress(null)
-    setQueueTier(null)
-    setRecoverableGeneration(null)
-
-    const idempotencyKey = crypto.randomUUID()
-    idempotencyKeyRef.current = idempotencyKey
-
-    try {
-      setStatus('optimizing')
-      const optimized = await postGenerationStep(
-        '/api/generate/optimize',
-        {
-          prompt,
-          ui_type: uiType,
-          style,
-          project_id: projectId || undefined,
-          user_settings: { default_export_format: 'zip', mobile_first: true },
-        },
-        idempotencyKey
-      )
-      setGeneration(optimized.generation)
-      setStatus('optimized')
-      await runAssetStage(optimized.generation.id, idempotencyKey)
-    } catch (error) {
-      setStatus('failed')
-      setAssetProgress(null)
-      setQueueTier(null)
-      setErrorMessage(error instanceof Error ? error.message : 'Generation failed')
-    } finally {
-      setIsSubmitting(false)
-    }
+    setLockMessage(null)
+    await runGeneration({
+      prompt,
+      uiType,
+      style,
+      projectId: projectId || undefined,
+    })
   }
 
   async function handleResumeGeneration() {
     if (!recoverableGeneration || isSubmitting) return
-
-    setIsSubmitting(true)
-    setErrorMessage(null)
     setDownloaded(false)
-    setAssetProgress(null)
-    setQueueTier(null)
-
-    const resumed = recoverableGeneration
-    setRecoverableGeneration(null)
-    setGeneration(resumed)
-    setPrompt(resumed.prompt)
-    setUiType(resumed.ui_type)
-    setStyle(resumed.style)
-    setStatus(resumed.status)
-
-    const idempotencyKey = typeof resumed.metadata?.idempotency_key === 'string' ? resumed.metadata.idempotency_key : crypto.randomUUID()
-    idempotencyKeyRef.current = idempotencyKey
-
-    try {
-      if (resumed.status === 'optimized') {
-        await runAssetStage(resumed.id, idempotencyKey)
-        return
-      }
-
-      if (resumed.status === 'generating_assets') {
-        const tier = resumed.asset_bundle?.queue_tier ?? 'standard'
-        setQueueTier(tier)
-        const finalGeneration = await pollAssetGeneration(resumed.id, tier, (completed, total) => {
-          setAssetProgress(`Asset ${completed}/${total} ready`)
-        })
-
-        if (finalGeneration.status === 'failed') {
-          throw new Error(finalGeneration.error ?? 'Asset generation failed')
-        }
-
-        setGeneration({ ...finalGeneration, status: 'preview_ready' })
-        setStatus('assets_ready')
-        setAssetProgress(null)
-        setQueueTier(null)
-        window.setTimeout(() => setStatus('preview_ready'), 180)
-      }
-    } catch (error) {
-      setStatus('failed')
-      setAssetProgress(null)
-      setQueueTier(null)
-      setErrorMessage(error instanceof Error ? error.message : 'Generation failed')
-    } finally {
-      setIsSubmitting(false)
-    }
+    setLockMessage(null)
+    setPrompt(recoverableGeneration.prompt)
+    setUiType(recoverableGeneration.ui_type)
+    setStyle(recoverableGeneration.style)
+    await resumeGeneration(recoverableGeneration)
   }
 
   async function handleLockStyle() {
@@ -296,15 +182,9 @@ export function GenerationWorkbench() {
   }
 
   function resetFlow() {
-    setStatus('idle')
-    setGeneration(null)
-    setErrorMessage(null)
-    setAssetProgress(null)
-    setQueueTier(null)
+    reset()
     setDownloaded(false)
-    setRecoverableGeneration(null)
     setLockMessage(null)
-    idempotencyKeyRef.current = null
   }
 
   return (
@@ -465,54 +345,4 @@ export function GenerationWorkbench() {
       </div>
     </div>
   )
-}
-
-async function postGenerationStep(url: string, body: unknown, idempotencyKey?: string): Promise<ApiSuccess> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (idempotencyKey) headers['X-Idempotency-Key'] = idempotencyKey
-
-  const response = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) })
-  const payload = (await response.json()) as ApiSuccess | ApiFailure
-  if (!response.ok || !payload.success) throw new Error(payload.success ? 'Request failed' : payload.error.message)
-  return payload
-}
-
-const ASSET_POLL_INTERVAL_STANDARD_MS = 4000
-const ASSET_POLL_INTERVAL_PRIORITY_MS = 2000
-const ASSET_POLL_TIMEOUT_MS = 120000
-const EXPECTED_ASSET_COUNT = 5
-
-async function pollAssetGeneration(
-  generationId: string,
-  queueTier: 'standard' | 'priority',
-  onProgress?: (completed: number, total: number) => void
-): Promise<Generation> {
-  const pollIntervalMs = queueTier === 'priority' ? ASSET_POLL_INTERVAL_PRIORITY_MS : ASSET_POLL_INTERVAL_STANDARD_MS
-  const deadline = Date.now() + ASSET_POLL_TIMEOUT_MS
-  let lastGeneration: Generation | null = null
-
-  while (Date.now() < deadline) {
-    const response = await fetch('/api/generate/assets/poll', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ generation_id: generationId }),
-    })
-    const payload = (await response.json()) as ApiSuccess | ApiFailure
-    if (!response.ok || !payload.success) throw new Error(payload.success ? 'Asset polling failed' : payload.error.message)
-
-    lastGeneration = payload.generation
-    const completedCount = payload.completed?.length ?? payload.generation.asset_bundle?.assets.length ?? 0
-    onProgress?.(completedCount, EXPECTED_ASSET_COUNT)
-
-    if (payload.done) {
-      if (payload.failed?.length) {
-        throw new Error(payload.generation.error ?? `Asset generation failed for ${payload.failed.map((item) => item.name).join(', ')}`)
-      }
-      return payload.generation
-    }
-
-    await new Promise((resolve) => window.setTimeout(resolve, pollIntervalMs))
-  }
-
-  throw new Error(lastGeneration?.error ?? 'Asset generation timed out after 120 seconds')
 }

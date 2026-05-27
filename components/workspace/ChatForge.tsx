@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { FormEvent, useId, useState } from 'react'
 import { generationStyleOptions } from '@/lib/generation-workbench'
 import type { GenerationStyle } from '@/lib/hudforge-generation'
@@ -12,6 +13,7 @@ export type ChatForgeProps = {
   onSubmit: (payload: { prompt: string; selectedUiTypes: WorkspaceUiTypeId[]; style: GenerationStyle }) => void
   isSubmitting?: boolean
   creditsLabel?: string
+  showBackLink?: boolean
 }
 
 export function ChatForge({
@@ -19,6 +21,7 @@ export function ChatForge({
   onSubmit,
   isSubmitting = false,
   creditsLabel = 'Roblox-first · ZIP export',
+  showBackLink = false,
 }: ChatForgeProps) {
   const formId = useId()
   const promptId = `${formId}-prompt`
@@ -43,6 +46,11 @@ export function ChatForge({
       <div className="chat-forge__grid" aria-hidden="true" />
 
       <div className="chat-forge__stage">
+        {showBackLink ? (
+          <Link href="/dashboard" className="chat-forge__back-link">
+            ← Back to studio
+          </Link>
+        ) : null}
         <h2 id={`${formId}-headline`} className="chat-forge__headline">
           Describe a UI. Preview it. Export to Roblox.
         </h2>

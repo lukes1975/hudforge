@@ -21,14 +21,38 @@ const isProtectedRoute = createRouteMatcher([
   '/api/billing/portal(.*)',
 ])
 
-export default clerkMiddleware((auth, request) => {
-  if (isProtectedRoute(request)) {
-    const bypassUserId = getE2EAuthBypassUserId(request.headers.get(getE2EAuthBypassHeaderName()))
-    if (bypassUserId) return
+/** Merged with Clerk defaults (includes unsafe-inline for Next.js + Clerk host from publishable key). */
+const hudforgeCspDirectives = {
+  'connect-src': [
+    'https://*.supabase.co',
+    'https://api.lemonsqueezy.com',
+    'https://openrouter.ai',
+    'https://fal.ai',
+    'https://*.fal.ai',
+    'https://*.ingest.sentry.io',
+    'https://*.sentry.io',
+  ],
+  'img-src': ['data:', 'blob:', 'https://*.fal.ai'],
+  'frame-src': ['https://*.lemonsqueezy.com'],
+  'object-src': ["'none'"],
+  'frame-ancestors': ["'none'"],
+}
 
-    auth.protect()
-  }
-})
+export default clerkMiddleware(
+  (auth, request) => {
+    if (isProtectedRoute(request)) {
+      const bypassUserId = getE2EAuthBypassUserId(request.headers.get(getE2EAuthBypassHeaderName()))
+      if (bypassUserId) return
+
+      auth.protect()
+    }
+  },
+  {
+    contentSecurityPolicy: {
+      directives: hudforgeCspDirectives,
+    },
+  },
+)
 
 export const config = {
   matcher: [

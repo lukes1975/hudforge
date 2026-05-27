@@ -1,27 +1,31 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 
 export const appNavItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
-  { href: '/projects', label: 'Projects', icon: ProjectsIcon },
-  { href: '/settings', label: 'Settings', icon: SettingsIcon },
-  { href: '/billing', label: 'Billing', icon: BillingIcon },
+  { href: '/dashboard', label: 'Dashboard', icon: DashboardIcon, kind: 'dashboard' as const },
+  { href: '/dashboard?new=1', label: 'New UI', icon: NewUiIcon, kind: 'new-ui' as const },
+  { href: '/projects', label: 'Projects', icon: ProjectsIcon, kind: 'route' as const },
+  { href: '/settings', label: 'Settings', icon: SettingsIcon, kind: 'route' as const },
+  { href: '/billing', label: 'Billing', icon: BillingIcon, kind: 'route' as const },
 ] as const
 
 type AppNavLinksProps = {
   variant?: 'sidebar' | 'mobile'
+  collapsed?: boolean
 }
 
-export function AppNavLinks({ variant = 'sidebar' }: AppNavLinksProps) {
+export function AppNavLinks({ variant = 'sidebar', collapsed = false }: AppNavLinksProps) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const isNewProject = pathname === '/dashboard' && (searchParams.get('new') === '1' || searchParams.get('new') === 'true')
 
   if (variant === 'mobile') {
     return (
       <nav className="flex flex-wrap gap-2 lg:hidden" aria-label="Workspace navigation">
         {appNavItems.map((item) => {
-          const active = isActiveNavItem(pathname, item.href)
+          const active = isActiveNavItem(pathname, item, isNewProject)
           return (
             <Link
               key={item.href}
@@ -41,20 +45,19 @@ export function AppNavLinks({ variant = 'sidebar' }: AppNavLinksProps) {
   }
 
   return (
-    <nav className="mt-8 grid gap-1" aria-label="Workspace navigation">
+    <nav className={`app-sidebar-nav ${collapsed ? 'app-sidebar-nav--collapsed' : ''}`} aria-label="Workspace navigation">
       {appNavItems.map((item) => {
-        const active = isActiveNavItem(pathname, item.href)
+        const active = isActiveNavItem(pathname, item, isNewProject)
         return (
           <Link
             key={item.href}
             href={item.href}
+            title={item.label}
             aria-current={active ? 'page' : undefined}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition ${
-              active ? 'bg-cyan-400/10 font-medium text-cyan-100' : 'text-slate-300 hover:bg-white/[0.06] hover:text-white'
-            }`}
+            className={`app-sidebar-nav__link ${active ? 'app-sidebar-nav__link--active' : ''}`}
           >
-            <item.icon className="h-[18px] w-[18px] shrink-0" />
-            {item.label}
+            <item.icon className="app-sidebar-nav__icon" />
+            <span className="app-sidebar-nav__label">{item.label}</span>
           </Link>
         )
       })}
@@ -62,8 +65,20 @@ export function AppNavLinks({ variant = 'sidebar' }: AppNavLinksProps) {
   )
 }
 
-function isActiveNavItem(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`)
+function isActiveNavItem(
+  pathname: string,
+  item: (typeof appNavItems)[number],
+  isNewProject: boolean,
+) {
+  if (item.kind === 'dashboard') {
+    return pathname === '/dashboard' && !isNewProject
+  }
+
+  if (item.kind === 'new-ui') {
+    return pathname === '/dashboard' && isNewProject
+  }
+
+  return pathname === item.href || pathname.startsWith(`${item.href}/`)
 }
 
 function DashboardIcon({ className }: { className?: string }) {
@@ -73,6 +88,14 @@ function DashboardIcon({ className }: { className?: string }) {
       <rect x="11.5" y="2.5" width="6" height="6" rx="1.5" />
       <rect x="2.5" y="11.5" width="6" height="6" rx="1.5" />
       <rect x="11.5" y="11.5" width="6" height="6" rx="1.5" />
+    </svg>
+  )
+}
+
+function NewUiIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <path d="M10 4.5v11M4.5 10h11" />
     </svg>
   )
 }

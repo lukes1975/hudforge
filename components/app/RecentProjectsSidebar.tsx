@@ -22,7 +22,11 @@ export function RecentProjectsSidebar({ generations }: { generations: Generation
         </ul>
       )}
 
-      <Link href="/projects" className="forge-button forge-button--secondary mt-5 w-full justify-center">
+      <Link href="/dashboard?new=1" className="forge-button forge-button--primary mt-5 w-full justify-center">
+        New UI pack
+      </Link>
+
+      <Link href="/projects" className="forge-button forge-button--secondary mt-3 w-full justify-center">
         View all projects
       </Link>
     </aside>

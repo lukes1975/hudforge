@@ -10,7 +10,7 @@ type BillingResponse = {
   error?: { message: string }
 }
 
-export function SidebarCreditsCard() {
+export function SidebarCreditsCard({ collapsed = false }: { collapsed?: boolean }) {
   const [billing, setBilling] = useState<BillingStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -41,8 +41,20 @@ export function SidebarCreditsCard() {
     }
   }, [])
 
+  if (collapsed) {
+    return (
+      <Link
+        href="/billing"
+        className="app-sidebar-credits app-sidebar-credits--collapsed"
+        title={billing ? `${billing.credits_remaining} credits · ${billing.current_plan.name}` : 'Billing'}
+      >
+        <span className="app-sidebar-credits__value">{loading ? '…' : (billing?.credits_remaining ?? '—')}</span>
+      </Link>
+    )
+  }
+
   return (
-    <div className="mt-8 rounded-lg border border-cyan-400/20 bg-cyan-400/10 p-4">
+    <div className="app-sidebar-credits">
       <p className="text-xs uppercase tracking-[0.22em] text-cyan-200">Credits</p>
       {loading ? (
         <p className="mt-2 text-sm text-slate-400">Loading balance...</p>

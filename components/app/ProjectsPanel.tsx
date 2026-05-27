@@ -144,7 +144,7 @@ export function ProjectsPanel() {
             <h2 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-white">Generation history</h2>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">Live client surface backed by the existing authenticated history API. In this build the service is mock-safe server memory.</p>
           </div>
-          <Link href="/dashboard" className="forge-button forge-button--primary">New generation</Link>
+          <Link href="/dashboard?new=1" className="forge-button forge-button--primary">New generation</Link>
         </div>
 
         {loading ? <PanelMessage title="Loading generations" detail="Fetching /api/generations..." /> : null}

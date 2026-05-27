@@ -1951,6 +1951,27 @@ input:focus-visible {
   text-align: center;
 }
 
+.chat-forge__back-link {
+  align-self: flex-start;
+  margin-bottom: -0.5rem;
+  color: rgba(148, 163, 184, 0.92);
+  font-size: 0.84rem;
+  font-weight: 600;
+  transition: color 180ms ease;
+}
+
+.chat-forge__back-link:hover {
+  color: white;
+}
+
+.chat-forge--light .chat-forge__back-link {
+  color: rgba(51, 65, 85, 0.88);
+}
+
+.chat-forge--light .chat-forge__back-link:hover {
+  color: rgba(15, 23, 42, 0.95);
+}
+
 .chat-forge__headline {
   max-width: 16ch;
   margin: 0;
@@ -2150,6 +2171,464 @@ input:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .chat-forge__motion-chip,
   .chat-forge__orb {
+    animation: none;
+  }
+}
+
+/* ── App sidebar (collapsible) ── */
+
+.app-sidebar {
+  --app-sidebar-width: 13.5rem;
+  --app-sidebar-width-collapsed: 4.5rem;
+  position: relative;
+  flex-shrink: 0;
+  width: var(--app-sidebar-width);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.18);
+  transition: width 280ms cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.app-sidebar--collapsed {
+  width: var(--app-sidebar-width-collapsed);
+}
+
+.app-sidebar__inner {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  padding: 1rem 0.75rem;
+}
+
+.app-sidebar__brand-row {
+  margin-bottom: 1.25rem;
+  padding-inline: 0.35rem;
+}
+
+.app-sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: white;
+  text-decoration: none;
+}
+
+.app-sidebar__brand-mark {
+  display: inline-flex;
+  height: 2rem;
+  width: 2rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(0, 209, 255, 0.28);
+  background: rgba(0, 209, 255, 0.1);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.app-sidebar__brand-text {
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  opacity: 1;
+  transition: opacity 200ms ease, width 200ms ease;
+}
+
+.app-sidebar--collapsed .app-sidebar__brand-text {
+  width: 0;
+  opacity: 0;
+}
+
+.app-sidebar-nav {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.app-sidebar-nav__link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  overflow: hidden;
+  border-radius: 0.65rem;
+  padding: 0.55rem 0.65rem;
+  color: rgba(203, 213, 225, 0.92);
+  font-size: 0.875rem;
+  transition:
+    background 180ms ease,
+    color 180ms ease,
+    padding 280ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-sidebar-nav__link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+}
+
+.app-sidebar-nav__link--active {
+  background: rgba(0, 209, 255, 0.1);
+  color: #cffafe;
+  font-weight: 600;
+}
+
+.app-sidebar-nav__icon {
+  height: 1.125rem;
+  width: 1.125rem;
+  flex-shrink: 0;
+}
+
+.app-sidebar-nav__label {
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 1;
+  transition: opacity 200ms ease, width 200ms ease;
+}
+
+.app-sidebar-nav--collapsed .app-sidebar-nav__link {
+  justify-content: center;
+  padding-inline: 0.5rem;
+}
+
+.app-sidebar-nav--collapsed .app-sidebar-nav__label {
+  width: 0;
+  opacity: 0;
+}
+
+.app-sidebar__footer {
+  margin-top: auto;
+  display: grid;
+  gap: 0.65rem;
+  padding-top: 1rem;
+}
+
+.app-sidebar-credits {
+  border: 1px solid rgba(0, 209, 255, 0.2);
+  border-radius: 0.75rem;
+  background: rgba(0, 209, 255, 0.1);
+  padding: 0.85rem;
+  transition: padding 280ms ease;
+}
+
+.app-sidebar-credits--collapsed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.5rem;
+  text-decoration: none;
+}
+
+.app-sidebar-credits__value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: white;
+}
+
+.app-sidebar__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(226, 232, 240, 0.88);
+  padding: 0.55rem 0.65rem;
+  font-size: 0.78rem;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
+}
+
+.app-sidebar__toggle:hover {
+  border-color: rgba(0, 209, 255, 0.28);
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+}
+
+.app-sidebar__toggle-text {
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 1;
+  transition: opacity 200ms ease, width 200ms ease;
+}
+
+.app-sidebar--collapsed .app-sidebar__toggle-text {
+  width: 0;
+  opacity: 0;
+}
+
+.app-sidebar__nav-skeleton {
+  height: 10rem;
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.04);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar,
+  .app-sidebar-nav__link,
+  .app-sidebar-nav__label,
+  .app-sidebar__brand-text,
+  .app-sidebar__toggle-text,
+  .app-sidebar-credits {
+    transition: none;
+  }
+}
+
+/* ── Generation ritual overlay ── */
+
+.generation-ritual {
+  position: relative;
+  min-height: calc(100vh - 7rem);
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(5, 8, 22, 0.92);
+}
+
+.generation-ritual__scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.generation-ritual__scene-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+}
+
+.generation-ritual__builder {
+  position: absolute;
+  left: 50%;
+  top: 18%;
+  width: 12rem;
+  height: 12rem;
+  transform: translateX(-50%);
+  opacity: 0.35;
+}
+
+.generation-ritual__avatar {
+  position: absolute;
+  left: 50%;
+  bottom: 1.5rem;
+  width: 4.5rem;
+  height: 7rem;
+  transform: translateX(-50%);
+  border-radius: 1.2rem 1.2rem 0.6rem 0.6rem;
+  background: linear-gradient(180deg, rgba(0, 209, 255, 0.35), rgba(124, 92, 255, 0.25));
+  box-shadow: 0 0 40px rgba(0, 209, 255, 0.15);
+}
+
+.generation-ritual__hammer {
+  position: absolute;
+  right: 1.2rem;
+  top: 2.5rem;
+  width: 3rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #94a3b8, #e2e8f0);
+  transform-origin: left center;
+  animation: ritualHammerSwing 1.2s ease-in-out infinite;
+}
+
+.generation-ritual__blocks {
+  position: absolute;
+  inset: 0;
+}
+
+.generation-ritual__block {
+  position: absolute;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(0, 209, 255, 0.25);
+  background: rgba(0, 209, 255, 0.12);
+  animation: ritualBlockFloat 4s ease-in-out infinite;
+}
+
+.generation-ritual__block--1 { left: 12%; top: 28%; animation-delay: 0s; }
+.generation-ritual__block--2 { right: 14%; top: 22%; animation-delay: 0.8s; }
+.generation-ritual__block--3 { left: 18%; bottom: 24%; animation-delay: 1.4s; }
+.generation-ritual__block--4 { right: 20%; bottom: 30%; animation-delay: 2s; }
+
+.generation-ritual__content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-height: inherit;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.25rem;
+}
+
+.generation-ritual__orb {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 18rem;
+  height: 18rem;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle, rgba(0, 209, 255, 0.22) 0%, rgba(124, 92, 255, 0.12) 42%, transparent 72%);
+  filter: blur(8px);
+  animation: chatForgeOrbPulse 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.generation-ritual__panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 36rem);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1.15rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
+    rgba(9, 13, 30, 0.88);
+  padding: 1.5rem;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.45);
+}
+
+.generation-ritual__title {
+  margin: 0.75rem 0 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.35;
+  color: white;
+}
+
+.generation-ritual__progress-wrap {
+  margin-top: 1.25rem;
+}
+
+.generation-ritual__progress-track {
+  height: 0.45rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.generation-ritual__progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(0, 209, 255, 1), rgba(124, 92, 255, 0.9));
+  transition: width 320ms ease;
+}
+
+.generation-ritual__progress-label {
+  margin: 0.45rem 0 0;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.92);
+}
+
+.generation-ritual__steps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .generation-ritual__steps {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.generation-ritual__step {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.65rem;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.78rem;
+  color: rgba(148, 163, 184, 0.9);
+}
+
+.generation-ritual__step--active {
+  border-color: rgba(0, 209, 255, 0.35);
+  background: rgba(0, 209, 255, 0.1);
+  color: #cffafe;
+}
+
+.generation-ritual__step--done {
+  border-color: rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.08);
+  color: #bbf7d0;
+}
+
+.generation-ritual__step-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.85;
+}
+
+.generation-ritual__meta {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.generation-ritual__chips,
+.generation-ritual__prompt-echo,
+.generation-ritual__style-echo,
+.generation-ritual__queue {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: rgba(148, 163, 184, 0.92);
+}
+
+.generation-ritual__chips {
+  color: rgba(207, 250, 254, 0.92);
+  font-weight: 600;
+}
+
+.generation-ritual__error {
+  margin-top: 1rem;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: 0.75rem;
+  background: rgba(127, 29, 29, 0.25);
+  padding: 0.85rem;
+  color: #fecaca;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+@keyframes ritualHammerSwing {
+  0%, 100% { transform: rotate(-18deg); }
+  45% { transform: rotate(24deg); }
+}
+
+@keyframes ritualBlockFloat {
+  0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.55; }
+  50% { transform: translate3d(0, -10px, 0); opacity: 0.9; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .generation-ritual__hammer,
+  .generation-ritual__block,
+  .generation-ritual__orb {
     animation: none;
   }
 }
