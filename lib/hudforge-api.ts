@@ -28,8 +28,6 @@ async function reportHudforgeErrorToSentry(
 ) {
   if (!process.env.SENTRY_DSN) return
 
-  await import('../sentry.server.config')
-
   const userId = await getHudforgeUserId().catch(() => null)
   if (userId) {
     Sentry.setUser({ id: userId })

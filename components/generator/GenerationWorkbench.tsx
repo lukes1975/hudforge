@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import type { ExportPackagePayload, Generation, GenerationStatus, UiType } from '@/lib/hudforge-generation'
 import { generationStyleOptions, generatorSamplePrompts, generationUiTypeOptions } from '@/lib/generation-workbench'
+import { GenerationPreview } from '@/components/generator/GenerationPreview'
 
 type ApiSuccess = {
   success: true
@@ -57,6 +58,7 @@ export function GenerationWorkbench() {
   const mainLuau = useMemo(() => exportPackage?.files.find((file) => file.path === 'code/MainUI.lua')?.content, [exportPackage])
   const previewAssets = generation?.asset_bundle?.assets ?? []
   const optimizedSpec = generation?.optimized_spec
+  const isPreviewGenerating = status === 'optimizing' || status === 'optimized' || status === 'generating_assets'
   const canGenerate = GENERATE_IDLE_STATUSES.includes(status) && !isSubmitting
 
   useEffect(() => {
@@ -324,29 +326,12 @@ export function GenerationWorkbench() {
             <span className="w-fit rounded-full border border-cyan-400/25 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">{statusCopy[status]}</span>
           </div>
 
-          <div className="mt-6 rounded-lg border border-white/10 bg-slate-950/80 p-4">
-            <div className="relative mx-auto min-h-[500px] max-w-[390px] overflow-hidden rounded-[2rem] border border-white/10 bg-[#090A1A] shadow-2xl">
-              <div className="absolute inset-x-16 top-3 h-1.5 rounded-full bg-white/20" />
-              <div className="absolute left-1/2 top-1/2 w-[88%] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/15 bg-[#15122B] p-5 shadow-2xl">
-                <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Roblox ScreenGui</p>
-                    <p className="mt-2 text-xl font-semibold text-white">{generation?.title ?? 'Main UI'}</p>
-                  </div>
-                  <div className="grid h-12 w-12 place-items-center rounded-lg bg-fuchsia-400/80 text-sm font-bold text-white">$</div>
-                </div>
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                  {(previewAssets.length ? previewAssets : [{ id: 'empty-1', type: 'panel', name: 'Panel' }, { id: 'empty-2', type: 'button', name: 'Button' }, { id: 'empty-3', type: 'icon', name: 'Icon' }]).slice(0, 3).map((asset) => (
-                    <div key={asset.id} className="rounded-lg border border-white/10 bg-white/[0.04] p-3">
-                      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{asset.type}</p>
-                      <p className="mt-2 text-sm font-medium text-white">{asset.name}</p>
-                    </div>
-                  ))}
-                </div>
-                <button type="button" className="mt-5 w-full rounded-lg bg-fuchsia-300 px-4 py-3 text-sm font-semibold text-slate-950">{uiType === 'shop_ui' ? 'Buy Item' : 'Primary Action'}</button>
-              </div>
-            </div>
-          </div>
+          <GenerationPreview
+            layoutSpec={optimizedSpec?.layout_spec}
+            assets={previewAssets}
+            title={generation?.title}
+            isGenerating={isPreviewGenerating}
+          />
         </section>
 
         <section className="rune-card p-5 sm:p-6">

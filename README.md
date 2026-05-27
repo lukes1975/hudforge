@@ -63,14 +63,14 @@ LEMON_SQUEEZY_WEBHOOK_SECRET=
 ```env
 SENTRY_DSN=
 NEXT_PUBLIC_SENTRY_DSN=
-```
-
-Optional for local source map uploads during build:
-
-```env
 SENTRY_ORG=
 SENTRY_PROJECT=hudforge
+SENTRY_AUTH_TOKEN=
 ```
+
+`SENTRY_AUTH_TOKEN` is used at build time to upload source maps (create at [sentry.io/settings/auth-tokens/](https://sentry.io/settings/auth-tokens/) with `project:releases` and `org:read`). For local builds, put it in `.env.sentry-build-plugin` (gitignored).
+
+Client errors route through `/monitoring` (Sentry tunnel) to reduce ad-blocker drops. Session Replay records 10% of sessions and 100% of error sessions.
 
 ## Authenticated app routes
 

@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+.env
+.env.local
 
 # vercel
 .vercel
@@ -53,3 +55,6 @@ supabase/.temp/
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# Sentry build plugin (source map upload token)
+.env.sentry-build-plugin
