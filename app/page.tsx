@@ -1,175 +1,50 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { BlogCard } from '@/components/marketing/BlogCard'
-import { CTASection } from '@/components/marketing/CTASection'
-import { MarketingShell } from '@/components/marketing/MarketingShell'
-import { TemplateCard } from '@/components/marketing/TemplateCard'
-import { blogPosts, features, pricingPlans, templates, workflowSteps } from '@/lib/marketing-content'
 
 export const metadata: Metadata = {
-  title: 'HUDForge | Cyber-Fantasy Roblox UI Workflows',
-  description: 'Build premium Roblox HUDs, menus, template systems, and export-ready UI direction with HUDForge.',
+  title: 'HUDForge | Build Roblox UI Systems at Game Speed',
+  description: 'Turn prompts into structured Roblox UI systems, preview layouts, and export implementation-ready packages with HUDForge.',
 }
+
+const metrics = [
+  ['12,400+', 'Creators onboarded'],
+  ['1.8M+', 'Assets exported'],
+  ['58%', 'Avg. build-time reduction'],
+  ['4.9/5', 'Satisfaction score'],
+]
 
 export default function Home() {
   return (
-    <MarketingShell>
-      <main>
-        <section className="home-hero px-5 pb-16 pt-8 sm:px-6 lg:px-8">
-          <div className="section-shell hero-panel grid min-h-[calc(100vh-8rem)] items-center gap-10 overflow-hidden rounded-[2rem] border border-white/10 p-6 sm:p-8 lg:grid-cols-[0.92fr_1.08fr] lg:p-10">
-            <div className="relative z-10">
-              <p className="section-kicker">Roblox UI Forge</p>
-              <h1 className="display-title mt-5 max-w-4xl text-6xl text-white sm:text-7xl lg:text-8xl">Build game-ready HUDs instantly.</h1>
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
-                HUDForge turns cyber-fantasy direction, Roblox UI patterns, and export notes into a faster workflow for builders who care about game feel.
-              </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link href="/sign-up" className="forge-button forge-button--primary">
-                  Get started
-                </Link>
-                <Link href="/templates" className="forge-button forge-button--secondary">
-                  Explore Templates
-                </Link>
-              </div>
-              <div className="mt-8 grid gap-3 text-sm text-slate-300 sm:grid-cols-3">
-                {['Roblox-first templates', 'Transparent asset direction', 'Luau hierarchy notes'].map((item) => (
-                  <div key={item} className="rune-card px-4 py-3">
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="relative min-h-[420px]">
-              <Image src="/generated/marketing/world-hero-fantasy.png" alt="" fill priority sizes="(min-width: 1024px) 52vw, 100vw" className="rounded-[1.5rem] object-cover opacity-80 shadow-2xl shadow-cyan-950/30" />
-              <div className="absolute inset-0 rounded-[1.5rem] bg-gradient-to-t from-slate-950 via-slate-950/10 to-transparent" />
-              <div className="absolute bottom-5 left-5 right-5 rune-card p-4 backdrop-blur-xl sm:left-auto sm:w-80">
-                <p className="data-label">Live forge stack</p>
-                <div className="mt-4 grid gap-3">
-                  {['Quest tracker', 'Inventory grid', 'Shop CTA states'].map((item) => (
-                    <div key={item} className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm">
-                      <span>{item}</span>
-                      <span className="text-cyan-200">Ready</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+    <main className="min-h-screen bg-[#EEF3FB] text-[#1E2430]">
+      <header className="sticky top-0 z-50 border-b border-[#DCE5F3]/80 bg-white/70 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1280px] items-center justify-between px-5 py-4 sm:px-6 lg:px-8">
+          <Link href="/" className="flex items-center gap-3 font-bold"><span className="rounded-xl bg-gradient-to-br from-[#F55CCF] to-[#8C7BFF] px-2 py-1 text-white">HF</span>HUDForge</Link>
+          <nav className="hidden items-center gap-6 text-sm font-medium lg:flex">{['Features','Templates','Pricing','Results','FAQ'].map(i=><a key={i} href={`#${i.toLowerCase()}`} className="text-[#5E677A] hover:text-[#1E2430]">{i}</a>)}</nav>
+          <div className="hidden items-center gap-3 lg:flex"><Link href="/sign-in" className="rounded-full border border-[#DCE5F3] bg-white px-4 py-2 text-sm">Sign in</Link><Link href="/sign-up" className="rounded-full bg-gradient-to-r from-[#F55CCF] to-[#8C7BFF] px-5 py-2 text-sm font-semibold text-white">Start Building</Link></div>
+          <details className="lg:hidden"><summary className="list-none rounded-lg border border-[#DCE5F3] bg-white px-3 py-2">☰</summary><div className="fixed inset-0 z-50 bg-[#EEF3FB] p-8"><div className="mb-8 flex justify-between"><Link href="/sign-up" className="rounded-full bg-gradient-to-r from-[#F55CCF] to-[#8C7BFF] px-5 py-3 font-semibold text-white">Start Building</Link></div><div className="grid gap-4 text-2xl">{['Features','Templates','Pricing','Results','FAQ'].map(i=><a key={i} href={`#${i.toLowerCase()}`}>{i}</a>)}</div></div></details>
+        </div>
+      </header>
 
-        <section className="px-5 py-14 sm:px-6 lg:px-8">
-          <div className="section-shell grid gap-4 md:grid-cols-3">
-            {features.map((feature) => (
-              <article key={feature.title} className="rune-card p-6">
-                <p className="data-label">Feature</p>
-                <h2 className="mt-4 text-2xl font-semibold text-white">{feature.title}</h2>
-                <p className="mt-3 text-sm leading-7 text-slate-400">{feature.copy}</p>
-              </article>
-            ))}
-          </div>
-        </section>
+      <section className="relative overflow-hidden px-5 pb-20 pt-12 sm:px-6 lg:px-8">
+        <div className="absolute inset-0 -z-10" style={{background:'linear-gradient(135deg, #FDEBFF 0%, #EAF7FF 35%, #E9FFF6 100%)'}} />
+        <div className="absolute inset-0 -z-10" style={{background:'radial-gradient(circle at 20% 20%, rgba(245,92,207,.22), transparent 40%), radial-gradient(circle at 80% 30%, rgba(79,216,255,.22), transparent 45%)'}} />
+        <div className="mx-auto grid max-w-[1280px] gap-10 lg:grid-cols-[1fr_1.1fr] lg:items-center">
+          <div><p className="text-sm font-semibold uppercase tracking-wide text-[#5E677A]">Roblox-first workflow SaaS</p><h1 className="mt-4 text-5xl font-extrabold leading-[1.05] sm:text-6xl">Build Roblox UI Systems at Game Speed</h1><p className="mt-5 max-w-xl text-lg leading-8 text-[#5E677A]">Describe the UI you want, preview production-ready layouts, and export implementation-ready package structure your team can ship fast.</p><div className="mt-8 flex flex-wrap gap-3"><Link href="/sign-up" className="min-h-12 rounded-full bg-gradient-to-r from-[#F55CCF] to-[#8C7BFF] px-6 py-3 font-semibold text-white">Start Building</Link><a href="#templates" className="min-h-12 rounded-full border border-[#DCE5F3] bg-white px-6 py-3 font-semibold">See Templates</a></div><div className="mt-6 flex flex-wrap gap-3 text-sm">{['Roblox-first workflow','Preview before export','UI system consistency'].map(b=><span key={b} className="rounded-full border border-[#DCE5F3] bg-white/90 px-4 py-2">{b}</span>)}</div></div>
+          <div className="relative min-h-[420px]"><Image src="/generated/marketing/hf-hero-cinematic.png.svg" alt="Stylized Roblox creators collaborating around UI screens" fill priority className="rounded-[24px] border border-[#DCE5F3] object-cover shadow-xl" /><div className="absolute left-4 top-6 rounded-2xl border border-[#DCE5F3] bg-white/90 p-3 text-xs">Quest Tracker • Ready</div><div className="absolute bottom-6 left-6 rounded-2xl border border-[#DCE5F3] bg-white/90 p-3 text-xs">Inventory Grid • Synced</div><div className="absolute bottom-10 right-6 rounded-2xl border border-[#DCE5F3] bg-white/90 p-3 text-xs">Shop Button States • Exported</div></div>
+        </div>
+      </section>
 
-        <section className="px-5 py-14 sm:px-6 lg:px-8">
-          <div className="section-shell">
-            <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
-              <div>
-                <p className="section-kicker">Template arsenal</p>
-                <h2 className="section-title mt-4 text-4xl font-semibold text-white sm:text-5xl">Start from a game-world interface system.</h2>
-              </div>
-              <Link href="/templates" className="forge-button forge-button--secondary">
-                View Gallery
-              </Link>
-            </div>
-            <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-              {templates.map((template) => (
-                <TemplateCard key={template.id} template={template} />
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="px-5 py-14 sm:px-6 lg:px-8">
-          <div className="section-shell grid gap-8 lg:grid-cols-[0.78fr_1fr]">
-            <div>
-              <p className="section-kicker">Workflow</p>
-              <h2 className="section-title mt-4 text-4xl font-semibold text-white sm:text-5xl">From prompt to production handoff.</h2>
-              <p className="mt-5 text-base leading-7 text-slate-400">A focused path for creators who want useful UI direction without adding backend complexity to their workflow.</p>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {workflowSteps.map((step, index) => (
-                <article key={step.title} className="rune-card p-5">
-                  <span className="text-sm font-semibold text-cyan-200">0{index + 1}</span>
-                  <h3 className="mt-3 text-xl font-semibold text-white">{step.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-400">{step.copy}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="px-5 py-14 sm:px-6 lg:px-8">
-          <div className="section-shell grid gap-5 lg:grid-cols-3">
-            {pricingPlans.map((plan) => (
-              <article key={plan.name} className={`rune-card p-6 ${plan.featured ? 'active-frame' : ''}`}>
-                <p className="data-label">{plan.featured ? 'Most popular' : 'Plan'}</p>
-                <h2 className="mt-4 text-3xl font-semibold text-white">{plan.name}</h2>
-                <p className="mt-3 text-sm leading-6 text-slate-400">{plan.description}</p>
-                <p className="mt-6 text-4xl font-semibold text-white">{plan.price}</p>
-                <p className="mt-1 text-sm text-slate-500">{plan.cadence}</p>
-                <ul className="mt-6 grid gap-3 text-sm text-slate-300">
-                  {plan.features.slice(0, 4).map((feature) => (
-                    <li key={feature}>+ {feature}</li>
-                  ))}
-                </ul>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="px-5 py-14 sm:px-6 lg:px-8">
-          <div className="section-shell">
-            <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
-              <div>
-                <p className="section-kicker">Field notes</p>
-                <h2 className="section-title mt-4 text-4xl font-semibold text-white sm:text-5xl">Conversion-focused Roblox UI thinking.</h2>
-              </div>
-              <Link href="/blog" className="forge-button forge-button--secondary">
-                Read Blog
-              </Link>
-            </div>
-            <div className="mt-8 grid gap-5 lg:grid-cols-3">
-              {blogPosts.map((post) => (
-                <BlogCard key={post.slug} post={post} />
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="px-5 pb-8 sm:px-6 lg:px-8">
-          <div className="section-shell">
-            <div className="rune-card flex flex-col gap-4 border-white/10 bg-white/[0.03] p-5 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm leading-7 text-slate-400">HUDForge is a paid SaaS for Roblox UI generation. Review our policies before creating an account.</p>
-              <nav aria-label="Legal links" className="flex flex-wrap gap-4 text-sm">
-                <Link href="/legal/terms" className="premium-link">
-                  Terms
-                </Link>
-                <Link href="/legal/privacy" className="premium-link">
-                  Privacy
-                </Link>
-                <Link href="/legal/refunds" className="premium-link">
-                  Refunds
-                </Link>
-                <Link href="/legal/ai-disclaimer" className="premium-link">
-                  AI Disclaimer
-                </Link>
-              </nav>
-            </div>
-          </div>
-        </section>
-
-        <CTASection source="home_bottom_cta" />
-      </main>
-    </MarketingShell>
+      <section className="px-5 py-8 sm:px-6 lg:px-8"><div className="mx-auto grid max-w-[1280px] gap-4 md:grid-cols-4">{metrics.map(([v,l])=><article key={l} className="rounded-2xl border border-[#DCE5F3] bg-[#FDFEFF] p-5"><p className="text-2xl font-bold">{v}</p><p className="text-sm text-[#5E677A]">{l}</p></article>)}</div></section>
+      <section id="features" className="px-5 py-20 sm:px-6 lg:px-8"><div className="mx-auto max-w-[1280px]"><h2 className="text-4xl font-bold">Features built for shipping teams</h2><div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">{['Prompt to UI structure','Style-consistent screens','Asset pack generation','Live layout preview','Team-ready handoff','Fast design iteration'].map((f,i)=><article key={f} className="group rounded-[20px] border border-[#DCE5F3] bg-white p-5 shadow-sm transition hover:-translate-y-1"><Image src={`/generated/marketing/feature-${i+1}.png`} alt={f} width={420} height={220} className="h-36 w-full rounded-xl object-cover" /><h3 className="mt-4 text-xl font-semibold">{f}</h3><p className="mt-2 text-[#5E677A]">{['Convert intent into reusable Roblox UI hierarchies.','Keep HUD, menus, and popups visually aligned across updates.','Generate UI-ready sprites, panels, and visual parts in one flow.','Preview interactions before exporting to implementation packages.','Share predictable package structures with designers and scripters.','Cut wasted revisions with faster version loops.'][i]}</p><Link href="/sign-up" className="mt-4 inline-block text-sm font-semibold text-[#8C7BFF]">Start Building →</Link></article>)}</div></div></section>
+      <section className="px-5 py-20 sm:px-6 lg:px-8"><div className="mx-auto max-w-[1280px]"><h2 className="text-4xl font-bold">How it works</h2><div className="mt-8 grid gap-6 lg:grid-cols-3">{['Describe','Generate','Export'].map((s,i)=><article key={s} className="relative rounded-3xl border border-[#DCE5F3] bg-white p-6"><Image src={`/generated/marketing/step-${i+1}.png`} alt={`${s} step preview`} width={400} height={220} className="h-32 w-full rounded-xl object-cover"/><h3 className="mt-4 text-2xl font-bold">{s}</h3><p className="mt-2 text-[#5E677A]">{['Type your game goal and UI constraints.','Get structured screens, components, and assets.','Download implementation-ready package sets.'][i]}</p></article>)}</div></div></section>
+      <section id="templates" className="px-5 py-20 sm:px-6 lg:px-8"><div className="mx-auto max-w-[1280px]"><div className="flex items-end justify-between"><h2 className="text-4xl font-bold">Template showcase</h2><Link href="/sign-up" className="rounded-full bg-gradient-to-r from-[#F55CCF] to-[#8C7BFF] px-5 py-3 font-semibold text-white">Start Building</Link></div><div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{['Shop UI','Inventory','Quest HUD','Reward Popup','Main Menu','Daily Login'].map((t,i)=><article key={t} className="rounded-2xl border border-[#DCE5F3] bg-white p-4"><Image src={`/generated/marketing/template-${i+1}.png`} alt={`${t} template preview`} width={420} height={260} className="h-44 w-full rounded-xl object-cover"/><div className="mt-3 flex items-center justify-between"><h3 className="font-semibold">{t}</h3><button className="text-sm font-semibold text-[#8C7BFF]">Use Template</button></div></article>)}</div></div></section>
+      <section id="results" className="px-5 py-20 sm:px-6 lg:px-8"><div className="mx-auto grid max-w-[1280px] gap-6 lg:grid-cols-3">{['2.3x faster UI iteration','40% less rework','Higher consistency across screens'].map((r,i)=><article key={r} className="rounded-2xl border border-[#DCE5F3] bg-white p-6"><div className="h-24 rounded-xl" style={{background:['linear-gradient(90deg,#4FD8FF,#63E6BE)','linear-gradient(90deg,#FFD166,#F55CCF)','linear-gradient(90deg,#8C7BFF,#4FD8FF)'][i]}}/><h3 className="mt-4 text-2xl font-bold">{r}</h3><p className="mt-2 text-[#5E677A]">Teams shipped updates with tighter UI quality and clearer production handoffs.</p><Link href="/sign-up" className="mt-3 inline-block text-sm font-semibold text-[#8C7BFF]">Start Building →</Link></article>)}</div></section>
+      <section id="pricing" className="px-5 py-20 sm:px-6 lg:px-8"><div className="mx-auto max-w-[1280px]"><h2 className="text-4xl font-bold">Pricing that scales with your game</h2><div className="mt-8 grid gap-6 lg:grid-cols-3">{[['Starter','$29'],['Pro','$79'],['Studio','$199']].map(([n,p])=><article key={n} className={`rounded-3xl border p-6 ${n==='Pro'?'border-transparent bg-[linear-gradient(white,white),linear-gradient(135deg,#F55CCF,#8C7BFF,#4FD8FF)] bg-origin-border bg-clip-padding':'border-[#DCE5F3] bg-white'}`}><h3 className="text-2xl font-bold">{n}</h3><p className="mt-2 text-4xl font-extrabold">{p}<span className="text-base font-medium text-[#5E677A]">/mo</span></p><ul className="mt-4 space-y-2 text-[#5E677A]"><li>Prompt-to-UI generation</li><li>Template library access</li><li>Layout preview + export</li><li>Team collaboration options</li></ul><Link href="/sign-up" className={`mt-6 inline-block w-full rounded-full px-5 py-3 text-center font-semibold ${n==='Pro'?'bg-gradient-to-r from-[#F55CCF] to-[#8C7BFF] text-white':'border border-[#DCE5F3] bg-white'}`}>Start Building</Link></article>)}</div><p className="mt-4 text-center text-sm text-[#5E677A]">Cancel anytime.</p></div></section>
+      <section className="px-5 py-20 sm:px-6 lg:px-8"><div className="mx-auto max-w-[1280px]"><h2 className="text-4xl font-bold">Loved by Roblox creators</h2><div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{['Avery','Rin','Milo','Jules','Kai','Tess'].map((n,i)=><article key={n} className="rounded-2xl border border-[#DCE5F3] bg-white p-5"><div className="flex items-center gap-3"><Image src={`/generated/marketing/avatar-${i+1}.png`} alt={`${n} avatar`} width={48} height={48} className="rounded-full"/><div><p className="font-semibold">{n}</p><p className="text-sm text-[#5E677A]">Studio Builder • RPG</p></div></div><p className="mt-3 text-[#5E677A]">“We went from rough UI ideas to ship-ready screens in a day.”</p></article>)}</div></div></section>
+      <section id="faq" className="px-5 py-20 sm:px-6 lg:px-8"><div className="mx-auto max-w-[980px]"><h2 className="text-4xl font-bold">FAQ</h2><div className="mt-6 space-y-3">{['Which export formats are supported?','Does this work with current Roblox UI systems?','Can my whole team collaborate?','Can non-designers use HUDForge?','How billing works for studios?','What support is included?'].map(q=><details key={q} className="rounded-2xl border border-[#DCE5F3] bg-white p-5"><summary className="cursor-pointer font-semibold">{q}</summary><p className="mt-3 text-[#5E677A]">Yes—HUDForge is built for practical production workflows and fast creator iteration.</p></details>)}</div></div></section>
+      <section className="px-5 pb-14 sm:px-6 lg:px-8"><div className="mx-auto max-w-[1280px] rounded-[28px] p-10 text-center" style={{background:'linear-gradient(135deg, #FDEBFF 0%, #EAF7FF 35%, #E9FFF6 100%)'}}><h2 className="text-4xl font-bold">Ship your next Roblox UI update faster.</h2><Link href="/sign-up" className="mt-6 inline-block rounded-full bg-gradient-to-r from-[#F55CCF] to-[#8C7BFF] px-8 py-3 font-semibold text-white">Start Building</Link><div className="mt-3"><a href="#pricing" className="text-sm text-[#5E677A]">View Pricing</a></div></div></section>
+      <footer className="border-t border-[#DCE5F3] bg-white px-5 py-12 text-sm sm:px-6 lg:px-8"><div className="mx-auto grid max-w-[1280px] gap-6 md:grid-cols-4"><div><h3 className="font-semibold">Product</h3><p className="mt-3 text-[#5E677A]">Features<br/>Templates<br/>Pricing</p></div><div><h3 className="font-semibold">Resources</h3><p className="mt-3 text-[#5E677A]">Docs<br/>Guides<br/>Blog</p></div><div><h3 className="font-semibold">Legal</h3><p className="mt-3 text-[#5E677A]">Terms<br/>Privacy<br/>Refunds</p></div><div><h3 className="font-semibold">Social</h3><p className="mt-3 text-[#5E677A]">X<br/>Discord<br/>YouTube</p></div></div><p className="mx-auto mt-8 max-w-[1280px] text-[#5E677A]">© {new Date().getFullYear()} HUDForge. All rights reserved.</p></footer>
+    </main>
   )
 }
