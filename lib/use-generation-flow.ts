@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Generation, GenerationStatus, GenerationStyle, UiType } from './hudforge-generation'
 import { pollAssetGeneration, postGenerationStep } from './generation-api'
+import { agentDebugLog } from './agent-debug-log'
 
 const RESUMABLE_STATUSES: GenerationStatus[] = ['optimized', 'generating_assets']
 
@@ -109,7 +110,7 @@ export function useGenerationFlow(options: UseGenerationFlowOptions = {}) {
         await runAssetStage(optimized.generation.id, idempotencyKey)
       } catch (error) {
         // #region agent log
-        fetch('http://127.0.0.1:7710/ingest/fb111c52-3d44-48a0-9eb3-c3ee65ff13e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1a730f'},body:JSON.stringify({sessionId:'1a730f',location:'use-generation-flow.ts:runGeneration',message:'generation flow failed',data:{stage:'runGeneration',errorMessage:error instanceof Error?error.message:String(error),generationId:generation?.id,statusBeforeFail:status},timestamp:Date.now(),hypothesisId:'H1,H2,H3,H4,H5'})}).catch(()=>{});
+        agentDebugLog({ location: 'use-generation-flow.ts:runGeneration', message: 'generation flow failed', data: { stage: 'runGeneration', errorMessage: error instanceof Error ? error.message : String(error), generationId: generation?.id, statusBeforeFail: status }, hypothesisId: 'H1,H2,H3,H4,H5' })
         // #endregion
         setStatus('failed')
         setAssetProgress(null)
@@ -162,7 +163,7 @@ export function useGenerationFlow(options: UseGenerationFlowOptions = {}) {
         }
       } catch (error) {
         // #region agent log
-        fetch('http://127.0.0.1:7710/ingest/fb111c52-3d44-48a0-9eb3-c3ee65ff13e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1a730f'},body:JSON.stringify({sessionId:'1a730f',location:'use-generation-flow.ts:resumeGeneration',message:'generation flow failed',data:{stage:'resumeGeneration',errorMessage:error instanceof Error?error.message:String(error),generationId:resumed.id,resumedStatus:resumed.status},timestamp:Date.now(),hypothesisId:'H1,H2,H3,H4,H5'})}).catch(()=>{});
+        agentDebugLog({ location: 'use-generation-flow.ts:resumeGeneration', message: 'generation flow failed', data: { stage: 'resumeGeneration', errorMessage: error instanceof Error ? error.message : String(error), generationId: resumed.id, resumedStatus: resumed.status }, hypothesisId: 'H1,H2,H3,H4,H5' })
         // #endregion
         setStatus('failed')
         setAssetProgress(null)

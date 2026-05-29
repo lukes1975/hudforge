@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
+import { agentDebugLog } from './agent-debug-log'
 import { analyzeRobloxPrompt } from './prompts'
 import { resilientFetch, ResilientFetchError } from './fetch-utils'
 import {
@@ -222,7 +223,7 @@ export function createRepositoryBackedHudforgeService(repository: HudforgeReposi
 
       const alreadyDebited = await hasAssetGenerationDebit(repository, userId, generationId)
       // #region agent log
-      fetch('http://127.0.0.1:7710/ingest/fb111c52-3d44-48a0-9eb3-c3ee65ff13e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1a730f'},body:JSON.stringify({sessionId:'1a730f',location:'hudforge-generation.ts:submitAssetsForGeneration',message:'asset submit entry',data:{generationId,status:generation.status,hasOptimizedSpec:Boolean(generation.optimized_spec),alreadyDebited,pendingJobs:generation.asset_bundle?.jobs?.filter((j)=>j.status==='pending').length??0},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
+      agentDebugLog({ location: 'hudforge-generation.ts:submitAssetsForGeneration', message: 'asset submit entry', data: { generationId, status: generation.status, hasOptimizedSpec: Boolean(generation.optimized_spec), alreadyDebited, pendingJobs: generation.asset_bundle?.jobs?.filter((j) => j.status === 'pending').length ?? 0 }, hypothesisId: 'H5' })
       // #endregion
       if (!alreadyDebited) {
         const rateLimits = await resolveRateLimits(repository, userId, rateLimitOverride)
@@ -235,7 +236,7 @@ export function createRepositoryBackedHudforgeService(repository: HudforgeReposi
         const queueTier = await getQueueTierForUser(repository, userId)
         const jobs = await submitAllFalJobs(generation.optimized_spec, { queueTier })
         // #region agent log
-        fetch('http://127.0.0.1:7710/ingest/fb111c52-3d44-48a0-9eb3-c3ee65ff13e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1a730f'},body:JSON.stringify({sessionId:'1a730f',location:'hudforge-generation.ts:submitAssetsForGeneration',message:'fal jobs submitted',data:{generationId,jobCount:jobs.length,jobNames:jobs.map((j)=>j.name),queueTier},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+        agentDebugLog({ location: 'hudforge-generation.ts:submitAssetsForGeneration', message: 'fal jobs submitted', data: { generationId, jobCount: jobs.length, jobNames: jobs.map((j) => j.name), queueTier }, hypothesisId: 'H2' })
         // #endregion
         const asset_bundle: AssetBundle = { generation_id: generationId, status: 'generating', assets: [], errors: [], jobs, queue_tier: queueTier }
         generation = await updateGeneration(repository, generation, { status: 'generating_assets', asset_bundle })
@@ -243,7 +244,7 @@ export function createRepositoryBackedHudforgeService(repository: HudforgeReposi
         return generation
       } catch (error) {
         // #region agent log
-        fetch('http://127.0.0.1:7710/ingest/fb111c52-3d44-48a0-9eb3-c3ee65ff13e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1a730f'},body:JSON.stringify({sessionId:'1a730f',location:'hudforge-generation.ts:submitAssetsForGeneration',message:'asset submit failed',data:{generationId,errorMessage:error instanceof Error?error.message:String(error),errorCode:error instanceof HudforgeServiceError?error.code:'unknown'},timestamp:Date.now(),hypothesisId:'H1,H2,H5'})}).catch(()=>{});
+        agentDebugLog({ location: 'hudforge-generation.ts:submitAssetsForGeneration', message: 'asset submit failed', data: { generationId, errorMessage: error instanceof Error ? error.message : String(error), errorCode: error instanceof HudforgeServiceError ? error.code : 'unknown' }, hypothesisId: 'H1,H2,H5' })
         // #endregion
         await refundAssetCredits(repository, userId, generationId, generation.asset_bundle, error instanceof Error ? error.message : 'asset submit failed')
         await updateGeneration(repository, generation, { status: 'failed', error: error instanceof Error ? error.message : 'Asset submit failed' })
@@ -302,7 +303,7 @@ export function createRepositoryBackedHudforgeService(repository: HudforgeReposi
         await repository.recordUsageEvent(userId, { name: 'assets_generated', generation_id: generationId, metadata: assetCostMetadata() })
         await repository.recordUsageEvent(userId, { name: 'preview_loaded', generation_id: generationId })
         // #region agent log
-        fetch('http://127.0.0.1:7710/ingest/fb111c52-3d44-48a0-9eb3-c3ee65ff13e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1a730f'},body:JSON.stringify({sessionId:'1a730f',location:'hudforge-generation.ts:pollAssetsForGeneration',message:'poll complete success',data:{generationId,completedCount:completed.length,failedCount:0,done:true},timestamp:Date.now(),hypothesisId:'H3,H4'})}).catch(()=>{});
+        agentDebugLog({ location: 'hudforge-generation.ts:pollAssetsForGeneration', message: 'poll complete success', data: { generationId, completedCount: completed.length, failedCount: 0, done: true }, hypothesisId: 'H3,H4' })
         // #endregion
         return { completed, pending: [], failed: [], done: true, generation }
       }
@@ -321,7 +322,7 @@ export function createRepositoryBackedHudforgeService(repository: HudforgeReposi
         generation = await updateGeneration(repository, generation, { status: 'failed', error: errorMessage, asset_bundle })
         await repository.recordUsageEvent(userId, { name: 'generation_failed', generation_id: generationId, metadata: { stage: 'assets', failed_assets: failed.length } })
         // #region agent log
-        fetch('http://127.0.0.1:7710/ingest/fb111c52-3d44-48a0-9eb3-c3ee65ff13e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1a730f'},body:JSON.stringify({sessionId:'1a730f',location:'hudforge-generation.ts:pollAssetsForGeneration',message:'poll complete with failures',data:{generationId,completedCount:completed.length,failedCount:failed.length,failedAssets:failed,done:true},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+        agentDebugLog({ location: 'hudforge-generation.ts:pollAssetsForGeneration', message: 'poll complete with failures', data: { generationId, completedCount: completed.length, failedCount: failed.length, failedAssets: failed, done: true }, hypothesisId: 'H4' })
         // #endregion
         return { completed, pending: [], failed, done: true, generation }
       }
@@ -329,7 +330,7 @@ export function createRepositoryBackedHudforgeService(repository: HudforgeReposi
       const asset_bundle: AssetBundle = { generation_id: generationId, status: 'generating', assets: completed, errors: [], jobs: updatedJobs }
       generation = await updateGeneration(repository, generation, { status: 'generating_assets', asset_bundle })
       // #region agent log
-      fetch('http://127.0.0.1:7710/ingest/fb111c52-3d44-48a0-9eb3-c3ee65ff13e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1a730f'},body:JSON.stringify({sessionId:'1a730f',location:'hudforge-generation.ts:pollAssetsForGeneration',message:'poll still in progress',data:{generationId,completedCount:completed.length,pendingCount:pending.length,failedCount:failed.length,done:false},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+      agentDebugLog({ location: 'hudforge-generation.ts:pollAssetsForGeneration', message: 'poll still in progress', data: { generationId, completedCount: completed.length, pendingCount: pending.length, failedCount: failed.length, done: false }, hypothesisId: 'H3' })
       // #endregion
       return { completed, pending, failed, done: false, generation }
     },
@@ -625,7 +626,7 @@ async function pollFalJobOnce(job: FalAssetJob, spec: OptimizedGenerationSpec, f
       const asset = parseFalResultToAsset(result, spec, job.name)
       if (!asset) {
         // #region agent log
-        fetch('http://127.0.0.1:7710/ingest/fb111c52-3d44-48a0-9eb3-c3ee65ff13e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1a730f'},body:JSON.stringify({sessionId:'1a730f',location:'hudforge-generation.ts:pollFalJobOnce',message:'fal poll no image url',data:{jobName:job.name,requestId:job.request_id},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+        agentDebugLog({ location: 'hudforge-generation.ts:pollFalJobOnce', message: 'fal poll no image url', data: { jobName: job.name, requestId: job.request_id }, hypothesisId: 'H4' })
         // #endregion
         return { status: 'failed', error: `fal.ai returned no image URL for ${job.name}` }
       }
@@ -634,13 +635,13 @@ async function pollFalJobOnce(job: FalAssetJob, spec: OptimizedGenerationSpec, f
     const body = await response.text()
     if (response.status === 400 && body.toLowerCase().includes('still in progress')) return { status: 'pending' }
     // #region agent log
-    fetch('http://127.0.0.1:7710/ingest/fb111c52-3d44-48a0-9eb3-c3ee65ff13e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1a730f'},body:JSON.stringify({sessionId:'1a730f',location:'hudforge-generation.ts:pollFalJobOnce',message:'fal poll http error',data:{jobName:job.name,httpStatus:response.status,bodySnippet:body.slice(0,120)},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+    agentDebugLog({ location: 'hudforge-generation.ts:pollFalJobOnce', message: 'fal poll http error', data: { jobName: job.name, httpStatus: response.status, bodySnippet: body.slice(0, 120) }, hypothesisId: 'H4' })
     // #endregion
     return { status: 'failed', error: `fal.ai polling failed for ${job.name} with status ${response.status}` }
   } catch (error) {
     if (error instanceof ResilientFetchError && error.timedOut) return { status: 'pending' }
     // #region agent log
-    fetch('http://127.0.0.1:7710/ingest/fb111c52-3d44-48a0-9eb3-c3ee65ff13e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1a730f'},body:JSON.stringify({sessionId:'1a730f',location:'hudforge-generation.ts:pollFalJobOnce',message:'fal poll exception',data:{jobName:job.name,errorMessage:error instanceof Error?error.message:String(error)},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+    agentDebugLog({ location: 'hudforge-generation.ts:pollFalJobOnce', message: 'fal poll exception', data: { jobName: job.name, errorMessage: error instanceof Error ? error.message : String(error) }, hypothesisId: 'H4' })
     // #endregion
     return { status: 'failed', error: error instanceof Error ? error.message : `fal.ai polling failed for ${job.name}` }
   }

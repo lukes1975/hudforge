@@ -1,4 +1,5 @@
 import type { ExportPackagePayload, Generation } from './hudforge-generation'
+import { agentDebugLog } from './agent-debug-log'
 
 export type GenerationApiSuccess = {
   success: true
@@ -31,7 +32,7 @@ export async function postGenerationStep(url: string, body: unknown, idempotency
   const payload = (await response.json()) as GenerationApiSuccess | GenerationApiFailure
   if (!response.ok || !payload.success) {
     // #region agent log
-    fetch('http://127.0.0.1:7710/ingest/fb111c52-3d44-48a0-9eb3-c3ee65ff13e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1a730f'},body:JSON.stringify({sessionId:'1a730f',location:'generation-api.ts:postGenerationStep',message:'api step failed',data:{url,httpStatus:response.status,errorCode:payload.success?undefined:payload.error.code,errorMessage:payload.success?'Request failed':payload.error.message},timestamp:Date.now(),hypothesisId:'H1,H2,H5'})}).catch(()=>{});
+    agentDebugLog({ location: 'generation-api.ts:postGenerationStep', message: 'api step failed', data: { url, httpStatus: response.status, errorCode: payload.success ? undefined : payload.error.code, errorMessage: payload.success ? 'Request failed' : payload.error.message }, hypothesisId: 'H1,H2,H5' })
     // #endregion
     throw new Error(payload.success ? 'Request failed' : payload.error.message)
   }
@@ -63,7 +64,7 @@ export async function pollAssetGeneration(
     if (payload.done) {
       if (payload.failed?.length) {
         // #region agent log
-        fetch('http://127.0.0.1:7710/ingest/fb111c52-3d44-48a0-9eb3-c3ee65ff13e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1a730f'},body:JSON.stringify({sessionId:'1a730f',location:'generation-api.ts:pollAssetGeneration',message:'poll done with failures',data:{generationId,failedAssets:payload.failed,generationError:payload.generation.error},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+        agentDebugLog({ location: 'generation-api.ts:pollAssetGeneration', message: 'poll done with failures', data: { generationId, failedAssets: payload.failed, generationError: payload.generation.error }, hypothesisId: 'H4' })
         // #endregion
         throw new Error(payload.generation.error ?? `Asset generation failed for ${payload.failed.map((item) => item.name).join(', ')}`)
       }
@@ -74,7 +75,7 @@ export async function pollAssetGeneration(
   }
 
   // #region agent log
-  fetch('http://127.0.0.1:7710/ingest/fb111c52-3d44-48a0-9eb3-c3ee65ff13e1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1a730f'},body:JSON.stringify({sessionId:'1a730f',location:'generation-api.ts:pollAssetGeneration',message:'poll client timeout',data:{generationId,queueTier,lastStatus:lastGeneration?.status,lastError:lastGeneration?.error,completedAssets:lastGeneration?.asset_bundle?.assets.length??0},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+  agentDebugLog({ location: 'generation-api.ts:pollAssetGeneration', message: 'poll client timeout', data: { generationId, queueTier, lastStatus: lastGeneration?.status, lastError: lastGeneration?.error, completedAssets: lastGeneration?.asset_bundle?.assets.length ?? 0 }, hypothesisId: 'H3' })
   // #endregion
   throw new Error(lastGeneration?.error ?? 'Asset generation timed out after 120 seconds')
 }
